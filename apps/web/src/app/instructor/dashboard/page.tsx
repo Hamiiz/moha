@@ -33,6 +33,9 @@ import {
   Shield,
   Tag,
   CheckCircle,
+  User,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -71,6 +74,58 @@ export default function InstructorDashboardPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [bookings, setBookings] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
+
+  const parseBookingDetails = (b: any) => {
+    const desc = b.description || "";
+
+    // Phone parsing
+    const phoneMatch = desc.match(/Phone:\s*([^\n]+)/i) || desc.match(/(\+?\d[\d\s\-\(\)]{8,}\d)/);
+    const phone = phoneMatch ? phoneMatch[1].trim() : "";
+
+    // Email parsing
+    const emailMatch = desc.match(/Email:\s*([^\n]+)/i);
+    const email = emailMatch ? emailMatch[1].trim() : "";
+
+    // Experience level parsing
+    const levelMatch = desc.match(/Level:\s*([^\n]+)/i);
+    const level = levelMatch ? levelMatch[1].trim() : "";
+
+    // Student Name parsing
+    let studentName = "";
+    const nameMatch = desc.match(/Name:\s*([^\n]+)/i);
+    if (nameMatch) {
+      studentName = nameMatch[1].trim();
+    } else if (b.summary) {
+      studentName = b.summary.replace(/^Driving Lesson:\s*/i, "").trim();
+    }
+
+    // Google Maps URL parsing
+    const directionsMatch = desc.match(/Directions:\s*(https?:\/\/[^\s\n]+)/i);
+    const mapsUrl = directionsMatch
+      ? directionsMatch[1].trim()
+      : b.location
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.location)}`
+      : null;
+
+    // Total Price parsing
+    const totalMatch = desc.match(/Total:\s*\$?([0-9.]+)/i);
+    const total = totalMatch ? totalMatch[1] : null;
+
+    const startTime = b.start ? new Date(b.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+    const endTime = b.end ? new Date(b.end).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+
+    return {
+      studentName: studentName || "Student",
+      phone,
+      email,
+      level,
+      total,
+      location: b.location || "Pickup location specified",
+      mapsUrl,
+      timeRange: startTime && endTime ? `${startTime} - ${endTime}` : startTime || "Scheduled Slot",
+    };
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem("instructor_token");
@@ -502,50 +557,159 @@ export default function InstructorDashboardPage() {
       {/* TAB 4: DAILY SCHEDULE */}
       {activeTab === "bookings" && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Label htmlFor="dateSelect" className="mb-0">Select Date:</Label>
-            <input
-              id="dateSelect"
-              type="date"
-              value={selectedDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setSelectedDate(e.target.value);
-                if (token) loadBookings(token, e.target.value);
-              }}
-              className="rounded-xl border border-slate-300 p-2 text-sm font-semibold"
-            />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200">
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-base">Booked Driving Lessons</h3>
+              <p className="text-xs text-slate-500">Tap phone to dial student or open direct pickup maps directions.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="dateSelect" className="mb-0 text-xs font-bold text-slate-700">Date:</Label>
+              <input
+                id="dateSelect"
+                type="date"
+                value={selectedDate}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setSelectedDate(e.target.value);
+                  if (token) loadBookings(token, e.target.value);
+                }}
+                className="rounded-xl border border-slate-300 p-2 text-xs font-semibold bg-slate-50 focus:bg-white"
+              />
+            </div>
           </div>
 
-          {loadingBookings && <p className="text-slate-500 text-sm">Loading bookings...</p>}
+          {loadingBookings && (
+            <div className="flex items-center justify-center py-12 gap-2 text-slate-500 text-sm font-medium">
+              <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+              <span>Loading scheduled lessons...</span>
+            </div>
+          )}
 
           {!loadingBookings && bookings.length === 0 && (
-            <Card className="text-center py-8 text-slate-400">
-              No bookings scheduled for {selectedDate}.
+            <Card className="text-center py-12 text-slate-400 space-y-2">
+              <Calendar className="h-10 w-10 mx-auto text-slate-300" />
+              <p className="font-semibold text-slate-600 text-sm">No lessons scheduled for {selectedDate}</p>
+              <p className="text-xs text-slate-400">All slots for this day are currently open.</p>
             </Card>
           )}
 
           {!loadingBookings &&
-            bookings.map((b) => (
-              <Card key={b.id} className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900">{b.summary}</span>
-                  <Badge variant="default">
-                    {new Date(b.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                  </Badge>
-                </div>
+            bookings.map((b) => {
+              const details = parseBookingDetails(b);
+              const isCopied = copiedPhoneId === b.id;
 
-                <div className="text-xs text-slate-600 space-y-1">
-                  <div>Pickup: <span className="font-medium">{b.location}</span></div>
-                  {b.description && <pre className="font-sans text-xs bg-slate-50 p-2 rounded-lg whitespace-pre-wrap">{b.description}</pre>}
-                </div>
+              return (
+                <Card
+                  key={b.id}
+                  className="p-5 space-y-4 border-slate-200 shadow-xs hover:shadow-md transition-all bg-white rounded-2xl"
+                >
+                  {/* Top Header: Time Slot & Level */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-50 text-brand-700 font-extrabold text-xs tracking-wide">
+                        <Clock className="h-3.5 w-3.5 text-brand-600" />
+                        {details.timeRange}
+                      </span>
+                      {details.level && (
+                        <Badge variant="default" className="capitalize text-xs font-bold border-brand-200 text-brand-800 bg-brand-50/50">
+                          {details.level}
+                        </Badge>
+                      )}
+                    </div>
+                    {details.total && (
+                      <span className="font-black text-slate-900 text-base">
+                        ${details.total} <span className="text-xs text-slate-400 font-normal">CAD</span>
+                      </span>
+                    )}
+                  </div>
 
-                <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
-                  <Button variant="danger" size="sm" onClick={() => handleCancelBooking(b.id)}>
-                    <Trash2 className="h-4 w-4 mr-1" /> Cancel Booking
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                  {/* Main Grid: Student Info & Phone Action */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Left Column: Student Details & Instant Call */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-slate-900 font-extrabold text-base">
+                        <div className="p-2 rounded-xl bg-slate-100 text-slate-700">
+                          <User className="h-4 w-4 text-brand-600" />
+                        </div>
+                        <span>{details.studentName}</span>
+                      </div>
+
+                      {details.phone ? (
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Contact Phone</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* INSTANT CALL BUTTON */}
+                            <a
+                              href={`tel:${details.phone}`}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs transition-all shadow-sm shrink-0"
+                            >
+                              <Phone className="h-3.5 w-3.5 fill-current" />
+                              <span>Call Client ({details.phone})</span>
+                            </a>
+
+                            {/* COPY PHONE BUTTON */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(details.phone);
+                                setCopiedPhoneId(b.id);
+                                toast.success("Phone number copied!");
+                                setTimeout(() => setCopiedPhoneId(null), 2000);
+                              }}
+                              className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors shrink-0"
+                              title="Copy Phone"
+                            >
+                              {isCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">No phone number provided</p>
+                      )}
+
+                      {details.email && (
+                        <div className="flex items-center gap-2 text-xs text-slate-500 pt-1">
+                          <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">{details.email}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column: Pickup Address & Navigation */}
+                    <div className="space-y-3 bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 flex flex-col justify-between">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                          <MapPin className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                          <span>Pickup Address</span>
+                        </div>
+                        <p className="text-xs font-medium text-slate-800 leading-relaxed pl-5">
+                          {details.location}
+                        </p>
+                      </div>
+
+                      {details.mapsUrl && (
+                        <a
+                          href={details.mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-white border border-slate-200 hover:border-brand-500 text-brand-700 hover:text-brand-800 font-bold text-xs transition-all shadow-2xs hover:shadow-xs mt-2"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 text-brand-600" />
+                          <span>Open Google Maps Directions</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                    <span className="text-slate-400 font-mono">ID: {b.id.slice(0, 14)}</span>
+                    <Button variant="danger" size="sm" onClick={() => handleCancelBooking(b.id)} className="h-8 text-xs font-semibold px-3">
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Cancel Lesson
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
         </div>
       )}
     </div>

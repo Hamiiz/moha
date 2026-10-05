@@ -89,19 +89,19 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
       </div>
 
       <form onSubmit={handleCheck} className="space-y-4">
-        <div>
-          <Label htmlFor="postalCode">Canadian Postal Code</Label>
-          <div className="flex gap-2">
+        <div className="space-y-2">
+          <Label htmlFor="postalCode" className="text-sm font-semibold text-slate-800">Canadian Postal Code</Label>
+          <div className="flex flex-col sm:flex-row gap-3">
             <Input
               id="postalCode"
               placeholder="e.g. M6K 1J7"
               value={postalCode}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPostalCode(e.target.value.toUpperCase())}
-              className="uppercase font-medium tracking-wider"
+              className="uppercase font-semibold tracking-wider text-base h-12 rounded-xl"
               maxLength={7}
               required
             />
-            <Button type="submit" disabled={loading} className="shrink-0">
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto shrink-0 h-12 px-6 rounded-xl font-bold text-sm">
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Check Postal Code"}
             </Button>
           </div>
