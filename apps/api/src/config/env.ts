@@ -1,4 +1,22 @@
 import { z } from "zod";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+// Automatically load .env file from apps/api/.env or current working directory
+const envPaths = [
+  resolve(process.cwd(), ".env"),
+  resolve(process.cwd(), "apps/api/.env"),
+];
+
+for (const envPath of envPaths) {
+  if (existsSync(envPath)) {
+    try {
+      process.loadEnvFile(envPath);
+    } catch {
+      // Ignore if already loaded or env file is invalid
+    }
+  }
+}
 
 const EnvSchema = z.object({
   NODE_ENV:             z.enum(["development", "production", "test"]).default("development"),
@@ -9,9 +27,9 @@ const EnvSchema = z.object({
   GOOGLE_PRIVATE_KEY:   z.string().optional(),
   GOOGLE_CALENDAR_ID:   z.string().optional(),
 
-  // Instructor base coordinate (default: Toronto Downtown)
-  BASE_LAT:             z.coerce.number().default(43.6532),
-  BASE_LNG:             z.coerce.number().default(-79.3832),
+  // Instructor base coordinate (default: 1002 King Street West, Toronto)
+  BASE_LAT:             z.coerce.number().default(43.6416),
+  BASE_LNG:             z.coerce.number().default(-79.4172),
 
   // Working hours (24-hour, local Toronto time)
   WORK_START_HOUR:      z.coerce.number().int().min(0).max(23).default(9),

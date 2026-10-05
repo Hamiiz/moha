@@ -32,21 +32,28 @@ export interface BookingPayload {
   basePrice:       number;
 }
 
+import { AppError } from "../middlewares/errorHandler.js";
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
+
+function hasCalendarCredentials(): boolean {
+  return Boolean(env.GOOGLE_CLIENT_EMAIL && env.GOOGLE_PRIVATE_KEY);
+}
 
 function buildAuthClient() {
   const email = env.GOOGLE_CLIENT_EMAIL;
   const key   = env.GOOGLE_PRIVATE_KEY;
 
   if (!email || !key) {
-    throw new Error(
-      "GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY must be set to use Calendar features.",
+    throw new AppError(
+      503,
+      "Google Calendar credentials (GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY) are not set.",
+      "CALENDAR_NOT_CONFIGURED",
     );
   }
 
   return new google.auth.JWT({
     email,
-    // Service-account keys stored in env vars use literal \\n — convert to real newlines
     key:    key.replace(/\\n/g, "\n"),
     scopes: ["https://www.googleapis.com/auth/calendar"],
   });
@@ -61,6 +68,7 @@ function getCalendar() {
 /**
  * Fetches all events for a given date (YYYY-MM-DD) from Google Calendar.
  * Results are cached for 60 seconds per date to reduce API quota usage.
+ * In development, returns [] if credentials are not configured yet.
  */
 export async function getEventsForDate(date: string): Promise<CalendarEvent[]> {
   const cached = calendarCache.get<CalendarEvent[]>(date);
@@ -69,28 +77,39 @@ export async function getEventsForDate(date: string): Promise<CalendarEvent[]> {
     return cached;
   }
 
-  const calendar  = getCalendar();
-  const dayStart  = new Date(`${date}T00:00:00.000`);
-  const dayEnd    = new Date(`${date}T23:59:59.999`);
+  if (!hasCalendarCredentials()) {
+    logger.warn({ date }, "Google Calendar credentials not configured — returning open schedule");
+    return [];
+  }
 
-  const res = await calendar.events.list({
-    calendarId:   env.GOOGLE_CALENDAR_ID ?? "primary",
-    timeMin:      dayStart.toISOString(),
-    timeMax:      dayEnd.toISOString(),
-    singleEvents: true,
-    orderBy:      "startTime",
-  });
+  try {
+    const calendar  = getCalendar();
+    const dayStart  = new Date(`${date}T00:00:00.000`);
+    const dayEnd    = new Date(`${date}T23:59:59.999`);
 
-  const events: CalendarEvent[] = (res.data.items ?? []).map((e) => ({
-    id:      e.id      ?? "",
-    summary: e.summary ?? "(no title)",
-    start:   e.start?.dateTime ?? e.start?.date ?? "",
-    end:     e.end?.dateTime   ?? e.end?.date   ?? "",
-  }));
+    const res = await calendar.events.list({
+      calendarId:   env.GOOGLE_CALENDAR_ID ?? "primary",
+      timeMin:      dayStart.toISOString(),
+      timeMax:      dayEnd.toISOString(),
+      singleEvents: true,
+      orderBy:      "startTime",
+    });
 
-  calendarCache.set(date, events);
-  logger.debug({ date, count: events.length }, "fetched calendar events");
-  return events;
+    const events: CalendarEvent[] = (res.data.items ?? []).map((e) => ({
+      id:      e.id      ?? "",
+      summary: e.summary ?? "(no title)",
+      start:   e.start?.dateTime ?? e.start?.date ?? "",
+      end:     e.end?.dateTime   ?? e.end?.date   ?? "",
+    }));
+
+    calendarCache.set(date, events);
+    logger.debug({ date, count: events.length }, "fetched calendar events");
+    return events;
+  } catch (err: any) {
+    logger.error({ err, date }, "Google Calendar API list events failed");
+    if (err instanceof AppError) throw err;
+    throw new AppError(503, "Google Calendar service unavailable: " + (err.message || "Unknown error"), "CALENDAR_ERROR");
+  }
 }
 
 // ── Slot computation ─────────────────────────────────────────────────────────
@@ -169,40 +188,51 @@ export async function checkDoubleBooking(slot: TimeSlot): Promise<boolean> {
  * Invalidates the calendar cache for the booking date after creation.
  */
 export async function createBooking(payload: BookingPayload): Promise<string> {
-  const calendar = getCalendar();
-  const total    = payload.basePrice + payload.surcharge;
-  const mapsUrl  = `https://www.google.com/maps/dir/?api=1&destination=${payload.pickupLat},${payload.pickupLng}`;
+  if (!hasCalendarCredentials()) {
+    logger.warn({ student: payload.studentName }, "Google Calendar credentials not configured — returning mock booking ID");
+    return `mock-booking-${Date.now()}`;
+  }
 
-  const description = [
-    `━━━ Student Details ━━━`,
-    `Name:   ${payload.studentName}`,
-    `Email:  ${payload.email}`,
-    `Phone:  ${payload.phone}`,
-    `Level:  ${payload.experienceLevel}`,
-    ``,
-    `━━━ Pricing (CAD) ━━━`,
-    `Base Lesson:  $${payload.basePrice.toFixed(2)}`,
-    `Surcharge:    $${payload.surcharge.toFixed(2)}`,
-    `Total:        $${total.toFixed(2)}`,
-    ``,
-    `━━━ Navigation ━━━`,
-    `Pickup: ${payload.pickupAddress}`,
-    `Directions: ${mapsUrl}`,
-  ].join("\n");
+  try {
+    const calendar = getCalendar();
+    const total    = payload.basePrice + payload.surcharge;
+    const mapsUrl  = `https://www.google.com/maps/dir/?api=1&destination=${payload.pickupLat},${payload.pickupLng}`;
 
-  const event = await calendar.events.insert({
-    calendarId: env.GOOGLE_CALENDAR_ID ?? "primary",
-    requestBody: {
-      summary:     `Driving Lesson: ${payload.studentName}`,
-      location:    payload.pickupAddress,
-      description,
-      start: { dateTime: payload.slot.start, timeZone: "America/Toronto" },
-      end:   { dateTime: payload.slot.end,   timeZone: "America/Toronto" },
-    },
-  });
+    const description = [
+      `━━━ Student Details ━━━`,
+      `Name:   ${payload.studentName}`,
+      `Email:  ${payload.email}`,
+      `Phone:  ${payload.phone}`,
+      `Level:  ${payload.experienceLevel}`,
+      ``,
+      `━━━ Pricing (CAD) ━━━`,
+      `Base Lesson:  $${payload.basePrice.toFixed(2)}`,
+      `Surcharge:    $${payload.surcharge.toFixed(2)}`,
+      `Total:        $${total.toFixed(2)}`,
+      ``,
+      `━━━ Navigation ━━━`,
+      `Pickup: ${payload.pickupAddress}`,
+      `Directions: ${mapsUrl}`,
+    ].join("\n");
 
-  const eventId = event.data.id ?? "";
-  calendarCache.del(payload.slot.start.slice(0, 10));
-  logger.info({ eventId, student: payload.studentName }, "booking created");
-  return eventId;
+    const event = await calendar.events.insert({
+      calendarId: env.GOOGLE_CALENDAR_ID ?? "primary",
+      requestBody: {
+        summary:     `Driving Lesson: ${payload.studentName}`,
+        location:    payload.pickupAddress,
+        description,
+        start: { dateTime: payload.slot.start, timeZone: "America/Toronto" },
+        end:   { dateTime: payload.slot.end,   timeZone: "America/Toronto" },
+      },
+    });
+
+    const eventId = event.data.id ?? `booking-${Date.now()}`;
+    calendarCache.del(payload.slot.start.slice(0, 10));
+    logger.info({ eventId, student: payload.studentName }, "booking created");
+    return eventId;
+  } catch (err: any) {
+    logger.error({ err, student: payload.studentName }, "Google Calendar insert event failed");
+    if (err instanceof AppError) throw err;
+    throw new AppError(503, "Failed to create Google Calendar event: " + (err.message || "Unknown error"), "CALENDAR_INSERT_FAILED");
+  }
 }

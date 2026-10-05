@@ -1,5 +1,14 @@
 {
   "extends": "@repo/tsconfig/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "noEmit": true,
+    "isolatedModules": true
+  },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
@@ -8,9 +17,5 @@
   ],
   "exclude": [
     "node_modules"
-  ],
-  "compilerOptions": {
-    "noEmit": true,
-    "isolatedModules": true
-  }
+  ]
 }

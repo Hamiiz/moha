@@ -26,7 +26,10 @@ interface NominatimResult {
 export async function geocodePostalCode(
   postalCode: string,
 ): Promise<GeocodedLocation | null> {
-  const key = postalCode.toUpperCase().replace(/\s/g, "");
+  const clean = postalCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (clean.length < 3) return null;
+
+  const key = clean.length === 6 ? `${clean.slice(0, 3)} ${clean.slice(3)}` : clean;
 
   const hit = geocodeCache.get<GeocodedLocation>(key);
   if (hit !== undefined) {
@@ -34,42 +37,51 @@ export async function geocodePostalCode(
     return hit;
   }
 
-  const url = new URL(NOMINATIM_URL);
-  url.searchParams.set("q",            `${key}, Canada`);
-  url.searchParams.set("format",       "json");
-  url.searchParams.set("limit",        "1");
-  url.searchParams.set("countrycodes", "ca");
+  const fetchGeocode = async (query: string): Promise<GeocodedLocation | null> => {
+    const url = new URL(NOMINATIM_URL);
+    url.searchParams.set("q",            query);
+    url.searchParams.set("format",       "json");
+    url.searchParams.set("limit",        "1");
+    url.searchParams.set("countrycodes", "ca");
 
-  let response: Response;
-  try {
-    response = await fetch(url.toString(), {
-      headers: {
-        "User-Agent": "DrivingInstructorBookingAPI/1.0 (contact@example.com)",
-        "Accept":     "application/json",
-      },
-    });
-  } catch (err) {
-    logger.error({ err, postalCode: key }, "Nominatim fetch failed");
-    return null;
-  }
+    try {
+      const response = await fetch(url.toString(), {
+        headers: {
+          "User-Agent": "MohaDrivingBookingAPI/1.0 (contact@mohadriving.ca)",
+          "Accept":     "application/json",
+        },
+      });
 
-  if (!response.ok) {
-    logger.error({ status: response.status, postalCode: key }, "Nominatim returned non-OK status");
-    return null;
-  }
+      if (!response.ok) return null;
+      const data = (await response.json()) as NominatimResult[];
+      const first = data[0];
+      if (!first) return null;
 
-  const data = (await response.json()) as NominatimResult[];
-
-  const first = data[0];
-  if (first === undefined) return null;
-
-  const result: GeocodedLocation = {
-    lat:         parseFloat(first.lat),
-    lng:         parseFloat(first.lon),
-    displayName: first.display_name,
+      return {
+        lat:         parseFloat(first.lat),
+        lng:         parseFloat(first.lon),
+        displayName: first.display_name,
+      };
+    } catch (err) {
+      logger.error({ err, query }, "Nominatim fetch failed");
+      return null;
+    }
   };
 
-  geocodeCache.set(key, result);
-  logger.debug({ postalCode: key, lat: result.lat, lng: result.lng }, "geocoded");
+  // Attempt 1: Exact postal code with space (e.g. "M5V 2T6, Canada")
+  let result = await fetchGeocode(`${key}, Canada`);
+
+  // Attempt 2 Fallback: FSA prefix (e.g. "M5V, Ontario, Canada")
+  if (!result && clean.length >= 3) {
+    const fsa = clean.slice(0, 3);
+    logger.debug({ fsa, key }, "exact postal code not found, falling back to FSA prefix");
+    result = await fetchGeocode(`${fsa}, Ontario, Canada`);
+  }
+
+  if (result) {
+    geocodeCache.set(key, result);
+    logger.debug({ postalCode: key, lat: result.lat, lng: result.lng }, "geocoded successfully");
+  }
+
   return result;
 }
