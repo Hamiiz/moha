@@ -2,18 +2,20 @@ import { z } from "zod";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-// Automatically load .env file from apps/api/.env or current working directory
-const envPaths = [
-  resolve(process.cwd(), ".env"),
-  resolve(process.cwd(), "apps/api/.env"),
-];
+// Automatically load .env file from apps/api/.env or current working directory in non-production
+if (process.env.NODE_ENV !== "production") {
+  const envPaths = [
+    resolve(process.cwd(), ".env"),
+    resolve(process.cwd(), "apps/api/.env"),
+  ];
 
-for (const envPath of envPaths) {
-  if (existsSync(envPath)) {
-    try {
-      process.loadEnvFile(envPath);
-    } catch {
-      // Ignore if already loaded
+  for (const envPath of envPaths) {
+    if (existsSync(envPath)) {
+      try {
+        process.loadEnvFile(envPath);
+      } catch {
+        // Ignore if already loaded
+      }
     }
   }
 }

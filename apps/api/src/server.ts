@@ -5,9 +5,9 @@ import { logger } from "./utils/logger.js";
 
 const server = http.createServer(app);
 
-server.listen(env.PORT, () => {
+server.listen(env.PORT, "0.0.0.0", () => {
   logger.info(
-    { port: env.PORT, env: env.NODE_ENV },
+    { port: env.PORT, env: env.NODE_ENV, host: "0.0.0.0" },
     "API server started",
   );
 });
