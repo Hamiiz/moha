@@ -1,6 +1,6 @@
 import type { LocationValidateResponse, AvailabilityResponse, BookingConfirmationResponse, LessonTypeOption } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://moha-api.fly.dev/api/v1";
 
 export async function getPublicPackages(): Promise<LessonTypeOption[]> {
   const res = await fetch(`${API_BASE}/packages`);
