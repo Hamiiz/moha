@@ -40,7 +40,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3001
+ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 RUN addgroup --system --gid 1001 nodejs \
@@ -53,6 +53,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static      ./apps
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public            ./apps/web/public
 
 USER nextjs
-EXPOSE 3001
+EXPOSE 3000
 # Next.js standalone entry point (monorepo path inside standalone/)
 CMD ["node", "apps/web/server.js"]

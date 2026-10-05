@@ -1,8 +1,4 @@
-# fly.toml app configuration file generated for moha-web on 2026-10-05T23:58:10+03:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
+# fly.web.toml app configuration file for moha-web
 app = 'moha-web'
 primary_region = 'ams'
 
@@ -12,15 +8,16 @@ primary_region = 'ams'
 [env]
   NODE_ENV = 'production'
   PORT = '3000'
+  HOSTNAME = '0.0.0.0'
+  NEXT_PUBLIC_API_URL = 'https://moha-api.fly.dev/api/v1'
 
 [http_service]
-  internal_port = 3001
+  internal_port = 3000
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
 [[vm]]
-  memory = '256mb'
+  memory = '512mb'
   cpus = 1
-  memory_mb = 256
