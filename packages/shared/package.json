@@ -1,0 +1,31 @@
+{
+  "name": "@repo/shared",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types":  "./dist/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types/index.js",
+      "types":  "./dist/types/index.d.ts"
+    },
+    "./schemas": {
+      "import": "./dist/schemas/index.js",
+      "types":  "./dist/schemas/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build":       "tsc",
+    "check-types": "tsc --noEmit",
+    "lint":        "echo No linting configured for shared"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@repo/tsconfig": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}
