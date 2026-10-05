@@ -11,6 +11,10 @@ import apiRouter          from "./routes/index.js";
 
 const app: express.Application = express();
 
+// Trust reverse proxy (Fly.io) for express-rate-limit & X-Forwarded-For IP resolution
+app.set("trust proxy", 1);
+
+
 
 // ── Security ─────────────────────────────────────────────────────────────────
 app.use(helmet());
