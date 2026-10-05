@@ -28,7 +28,7 @@ export default function HomePage() {
         </div>
 
         <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
-          Master the Road with Confidence in Toronto
+          Master the Road with Confidence
         </h1>
 
         <p className="text-slate-600 text-base sm:text-lg">

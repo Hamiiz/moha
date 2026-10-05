@@ -13,7 +13,7 @@ for (const envPath of envPaths) {
     try {
       process.loadEnvFile(envPath);
     } catch {
-      // Ignore if already loaded or env file is invalid
+      // Ignore if already loaded
     }
   }
 }
@@ -21,6 +21,10 @@ for (const envPath of envPaths) {
 const EnvSchema = z.object({
   NODE_ENV:             z.enum(["development", "production", "test"]).default("development"),
   PORT:                 z.coerce.number().int().positive().default(3000),
+
+  // Instructor Authentication Security
+  INSTRUCTOR_PIN:       z.string().default("123456"),
+  JWT_SECRET:           z.string().default("moha-instructor-super-secret-key-2026"),
 
   // Google Calendar service account
   GOOGLE_CLIENT_EMAIL:  z.string().email().optional(),
@@ -44,7 +48,7 @@ export type Env = z.infer<typeof EnvSchema>;
 const parsed = EnvSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("❌  Invalid environment variables:\n", parsed.error.flatten().fieldErrors);
+  console.error("❌ Invalid environment variables:\n", parsed.error.flatten().fieldErrors);
   process.exit(1);
 }
 

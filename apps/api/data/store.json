@@ -1,0 +1,102 @@
+{
+  "settings": {
+    "baseLat": 43.6416,
+    "baseLng": -79.4172,
+    "baseAddress": "1002 King Street West, Toronto, ON M6K 1J7",
+    "weeklySchedule": [
+      {
+        "day": "mon",
+        "label": "Monday",
+        "startHour": 9,
+        "endHour": 18,
+        "isOff": false
+      },
+      {
+        "day": "tue",
+        "label": "Tuesday",
+        "startHour": 9,
+        "endHour": 18,
+        "isOff": false
+      },
+      {
+        "day": "wed",
+        "label": "Wednesday",
+        "startHour": 9,
+        "endHour": 18,
+        "isOff": false
+      },
+      {
+        "day": "thu",
+        "label": "Thursday",
+        "startHour": 9,
+        "endHour": 18,
+        "isOff": false
+      },
+      {
+        "day": "fri",
+        "label": "Friday",
+        "startHour": 9,
+        "endHour": 18,
+        "isOff": false
+      },
+      {
+        "day": "sat",
+        "label": "Saturday",
+        "startHour": 9,
+        "endHour": 17,
+        "isOff": false
+      },
+      {
+        "day": "sun",
+        "label": "Sunday",
+        "startHour": 10,
+        "endHour": 16,
+        "isOff": true
+      }
+    ]
+  },
+  "pickupHubs": [
+    {
+      "id": "hub-1",
+      "name": "Scarborough Town Centre",
+      "address": "300 Borough Dr, Scarborough, ON",
+      "lat": 43.7764,
+      "lng": -79.2318
+    },
+    {
+      "id": "hub-2",
+      "name": "Mississauga City Centre",
+      "address": "100 City Centre Dr, Mississauga, ON",
+      "lat": 43.589,
+      "lng": -79.6441
+    },
+    {
+      "id": "hub-3",
+      "name": "Vaughan Metropolitan Centre",
+      "address": "3080 Rutherford Rd, Vaughan, ON",
+      "lat": 43.7935,
+      "lng": -79.5277
+    }
+  ],
+  "packages": [
+    {
+      "id": "single",
+      "title": "Single 90-Minute Session",
+      "description": "Standard intensive single session. Great for skill refinement and parallel parking practice.",
+      "basePrice": 90
+    },
+    {
+      "id": "pass5",
+      "title": "5-Lesson Value Package",
+      "description": "Complete package covering city driving, highway entry, and mock road test evaluations.",
+      "basePrice": 400,
+      "badge": "Save $50"
+    },
+    {
+      "id": "roadtest",
+      "title": "Road Test Warmup & Car Rental",
+      "description": "60-min pre-test warm up session plus instructor vehicle rental for your G2 / G road test.",
+      "basePrice": 150
+    }
+  ]
+}

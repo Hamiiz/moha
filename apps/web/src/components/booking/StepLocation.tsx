@@ -25,7 +25,7 @@ interface StepLocationProps {
 
 export function StepLocation({ onComplete, initialData }: StepLocationProps) {
   const [postalCode, setPostalCode] = useState(initialData?.postalCode || "");
-  const [address, setAddress] = useState(initialData?.pickupAddress || "");
+  const [streetAddress, setStreetAddress] = useState(initialData?.pickupAddress || "");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<LocationValidateResponse | null>(null);
 
@@ -42,7 +42,7 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
       setResult(res);
 
       if (res.isWithinServiceArea) {
-        toast.success(`Service available! ${res.distanceKm}km from instructor base.`);
+        toast.success(`Service available! ${res.distanceKm} km from 1002 King St W.`);
       } else {
         toast.warning("Outside primary door-to-door area. Please select a pickup hub.");
       }
@@ -67,7 +67,7 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
 
   const handleConfirmStandard = () => {
     if (!result || !result.location) return;
-    const finalAddr = address.trim() || result.location.displayName;
+    const finalAddr = streetAddress.trim() || `${postalCode.toUpperCase()} (${result.location.displayName.slice(0, 45)}...)`;
 
     onComplete({
       postalCode: postalCode.toUpperCase(),
@@ -84,7 +84,7 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
       <div>
         <h2 className="text-xl font-bold text-slate-900">1. Pickup Location & Eligibility</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Enter your Canadian postal code to check instructor service area and travel surcharge.
+          Enter your Canadian postal code to calculate travel distance from our main hub at <span className="font-semibold text-slate-700">1002 King St W</span>.
         </p>
       </div>
 
@@ -94,15 +94,15 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
           <div className="flex gap-2">
             <Input
               id="postalCode"
-              placeholder="e.g. M5V 2T6"
+              placeholder="e.g. M6K 1J7"
               value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPostalCode(e.target.value.toUpperCase())}
               className="uppercase font-medium tracking-wider"
               maxLength={7}
               required
             />
             <Button type="submit" disabled={loading} className="shrink-0">
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Check Availability"}
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Check Postal Code"}
             </Button>
           </div>
         </div>
@@ -115,27 +115,28 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
             <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-emerald-900">Door-to-Door Service Available</h3>
+                <h3 className="font-semibold text-emerald-900">Door-to-Door Pickup Available</h3>
                 <Badge variant="success">${result.surcharge} Surcharge</Badge>
               </div>
               <p className="text-sm text-emerald-700 mt-0.5">
-                Distance: <span className="font-semibold">{result.distanceKm} km</span> from Toronto Downtown base.
+                Distance: <span className="font-semibold">{result.distanceKm} km</span> from 1002 King St W.
               </p>
             </div>
           </div>
 
           <div>
-            <Label htmlFor="pickupStreet">Street Address or Pickup Notes (Optional)</Label>
+            <Label htmlFor="pickupStreet">Exact Street Address for Pickup</Label>
             <Input
               id="pickupStreet"
-              placeholder={result.location?.displayName || "e.g., 100 Queen St W, Front Entrance"}
-              value={address}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddress(e.target.value)}
+              placeholder="e.g., 1002 King St W, Apt 4B (or front door notes)"
+              value={streetAddress}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStreetAddress(e.target.value)}
+              required
             />
           </div>
 
-          <Button onClick={handleConfirmStandard} className="w-full">
-            Continue with this Location
+          <Button onClick={handleConfirmStandard} disabled={!streetAddress.trim()} className="w-full">
+            Confirm Pickup Address
           </Button>
         </Card>
       )}
