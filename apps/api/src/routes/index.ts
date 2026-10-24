@@ -3,11 +3,19 @@ import locationRouter     from "./location.js";
 import availabilityRouter from "./availability.js";
 import bookingsRouter     from "./bookings.js";
 import instructorRouter   from "./instructor.js";
-import { listPackagesPublicHandler } from "../controllers/instructorController.js";
+import {
+  listPackagesPublicHandler,
+  getPublicSettingsHandler,
+  listFleetPublicHandler,
+} from "../controllers/instructorController.js";
 
 const router: Router = Router();
 
-router.get("/packages",     listPackagesPublicHandler); // Public lesson packages endpoint
+// Public endpoints
+router.get("/packages",     listPackagesPublicHandler);
+router.get("/settings",     getPublicSettingsHandler);
+router.get("/fleet",        listFleetPublicHandler);
+
 router.use("/location",     locationRouter);
 router.use("/availability", availabilityRouter);
 router.use("/bookings",     bookingsRouter);

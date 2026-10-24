@@ -41,6 +41,9 @@ const EnvSchema = z.object({
   WORK_START_HOUR:      z.coerce.number().int().min(0).max(23).default(9),
   WORK_END_HOUR:        z.coerce.number().int().min(0).max(23).default(18),
 
+  // Persistence: Neon / Supabase PostgreSQL URL
+  DATABASE_URL:         z.string().optional(),
+
   // CORS
   CORS_ORIGIN:          z.string().default("*"),
 });

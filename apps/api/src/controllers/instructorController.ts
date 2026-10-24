@@ -14,6 +14,10 @@ import {
   addPackage,
   updatePackage,
   deletePackage,
+  getFleet,
+  addVehicle,
+  updateVehicle,
+  deleteVehicle,
 } from "../services/storeService.js";
 import { getEventsForDate, deleteCalendarEvent } from "../services/calendarService.js";
 
@@ -37,6 +41,34 @@ export const PackageSchema = z.object({
   badge:       z.string().optional(),
 });
 
+export const VehicleSchema = z.object({
+  name:       z.string().min(2, "Vehicle name required"),
+  subtitle:   z.string().min(2, "Subtitle required"),
+  badgeText:  z.string().optional(),
+  badgeIcon:  z.string().optional(),
+  features:   z.array(z.string()).min(1, "At least one feature required"),
+});
+
+export const SettingsUpdateSchema = z.object({
+  phone:                 z.string().optional(),
+  email:                 z.string().email().optional(),
+  instructorName:        z.string().optional(),
+  bannerNotice:          z.string().optional(),
+  hourlyRates: z.object({
+    g2:        z.number().positive(),
+    g:         z.number().positive(),
+    beginner:  z.number().positive(),
+    refresher: z.number().positive(),
+  }).optional(),
+  bufferMinutes:         z.number().int().min(0).max(120).optional(),
+  lessonDurationMinutes: z.number().int().positive().optional(),
+  baseAddress:           z.string().optional(),
+  baseLat:               z.number().optional(),
+  baseLng:               z.number().optional(),
+  maxServiceRadiusKm:    z.number().positive().optional(),
+  surchargePerKm:        z.number().min(0).optional(),
+});
+
 export const DayScheduleSchema = z.object({
   day:       z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
   label:     z.string(),
@@ -47,7 +79,7 @@ export const DayScheduleSchema = z.object({
 
 export const WeeklyScheduleSchema = z.array(DayScheduleSchema);
 
-// ── Handlers ─────────────────────────────────────────────────────────────────
+// ── Auth Handlers ───────────────────────────────────────────────────────────
 
 export async function loginInstructor(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -66,9 +98,41 @@ export async function loginInstructor(req: Request, res: Response, next: NextFun
   }
 }
 
+// ── Settings Handlers ───────────────────────────────────────────────────────
+
+export async function getPublicSettingsHandler(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const s = getSettings();
+    res.json({
+      success: true,
+      data: {
+        phone:                 s.phone,
+        email:                 s.email,
+        instructorName:        s.instructorName,
+        bannerNotice:          s.bannerNotice,
+        hourlyRates:           s.hourlyRates,
+        bufferMinutes:         s.bufferMinutes,
+        lessonDurationMinutes: s.lessonDurationMinutes,
+        baseAddress:           s.baseAddress,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getInstructorSettingsHandler(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     res.json({ success: true, data: getSettings() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateInstructorSettingsHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const updated = updateSettings(req.body);
+    res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
   }
@@ -78,6 +142,51 @@ export async function updateWeeklyScheduleHandler(req: Request, res: Response, n
   try {
     const updated = updateWeeklySchedule(req.body);
     res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Vehicle Fleet Handlers (No images required) ──────────────────────────────
+
+export async function listFleetPublicHandler(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: getFleet() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createVehicleHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const created = addVehicle(req.body);
+    res.status(201).json({ success: true, data: created });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateVehicleHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = String(req.params["id"] || "");
+    const updated = updateVehicle(id, req.body);
+    if (!updated) {
+      throw new AppError(404, "Vehicle not found", "NOT_FOUND");
+    }
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteVehicleHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = String(req.params["id"] || "");
+    const deleted = deleteVehicle(id);
+    if (!deleted) {
+      throw new AppError(404, "Vehicle not found", "NOT_FOUND");
+    }
+    res.json({ success: true, data: { message: "Vehicle deleted successfully" } });
   } catch (err) {
     next(err);
   }
@@ -100,14 +209,12 @@ export async function createHubHandler(req: Request, res: Response, next: NextFu
     let finalLat = lat;
     let finalLng = lng;
 
-    // Auto-geocode address if lat/lng are not explicitly supplied
     if (finalLat === undefined || finalLng === undefined) {
       const geo = await geocodePostalCode(address);
       if (geo) {
         finalLat = geo.lat;
         finalLng = geo.lng;
       } else {
-        // Fallback default coordinates if geocoding yields no result
         finalLat = 43.7000;
         finalLng = -79.4000;
       }

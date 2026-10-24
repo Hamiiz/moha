@@ -51,3 +51,30 @@ export interface BookingConfirmationResponse {
   };
   confirmedAt: string;
 }
+
+export interface HourlyRates {
+  g2: number;
+  g: number;
+  beginner: number;
+  refresher: number;
+}
+
+export interface PublicSettings {
+  phone: string;
+  email: string;
+  instructorName: string;
+  bannerNotice?: string;
+  hourlyRates: HourlyRates;
+  bufferMinutes: number;
+  lessonDurationMinutes: number;
+  baseAddress: string;
+}
+
+export interface VehicleItem {
+  id: string;
+  name: string;
+  subtitle: string;
+  badgeText?: string;
+  badgeIcon?: string;
+  features: string[];
+}

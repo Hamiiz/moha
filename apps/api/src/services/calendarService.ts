@@ -107,6 +107,9 @@ export async function getEventsForDate(date: string): Promise<CalendarEvent[]> {
 
 export function computeAvailableSlots(dateStr: string, events: CalendarEvent[]): TimeSlot[] {
   const currentSettings = getSettings();
+  const bufferMs = (currentSettings.bufferMinutes ?? 30) * 60_000;
+  const lessonDurationMs = (currentSettings.lessonDurationMinutes ?? 90) * 60_000;
+
   const dateObj = new Date(`${dateStr}T12:00:00`);
   const dayIndex = dateObj.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
@@ -128,15 +131,15 @@ export function computeAvailableSlots(dateStr: string, events: CalendarEvent[]):
   const blocked: Array<[number, number]> = events
     .filter((e) => e.start && e.end)
     .map((e) => [
-      new Date(e.start).getTime() - BUFFER_MS,
-      new Date(e.end).getTime()   + BUFFER_MS,
+      new Date(e.start).getTime() - bufferMs,
+      new Date(e.end).getTime()   + bufferMs,
     ]);
 
   const slots: TimeSlot[] = [];
   let cursor = workStart;
 
-  while (cursor + LESSON_DURATION_MS <= workEnd) {
-    const slotEnd  = cursor + LESSON_DURATION_MS;
+  while (cursor + lessonDurationMs <= workEnd) {
+    const slotEnd  = cursor + lessonDurationMs;
     const overlaps = blocked.some(([bs, be]) => cursor < be && slotEnd > bs);
 
     if (!overlaps) {

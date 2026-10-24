@@ -27,8 +27,8 @@ const MOCK_SCHEDULE: ScheduleItem[] = [
     time: "11:30 AM - 01:00 PM",
     student: "Bob Johnson",
     phone: "647-555-0199",
-    address: "100 City Centre Dr, Mississauga",
-    mapsUrl: "https://www.google.com/maps/search/?api=1&query=100+City+Centre+Dr+Mississauga",
+    address: "1002 King St W, Toronto",
+    mapsUrl: "https://www.google.com/maps/search/?api=1&query=1002+King+St+W+Toronto",
   },
 ];
 

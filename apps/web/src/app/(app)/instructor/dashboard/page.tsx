@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   getInstructorSettings,
+  updateInstructorSettings,
   updateInstructorWeeklySchedule,
   getInstructorHubs,
   createInstructorHub,
@@ -16,6 +17,9 @@ import {
   getPublicPackages,
   createInstructorPackage,
   deleteInstructorPackage,
+  getInstructorFleet,
+  createInstructorVehicle,
+  deleteInstructorVehicle,
   getInstructorBookings,
   deleteInstructorBooking,
 } from "@/lib/api";
@@ -36,6 +40,9 @@ import {
   User,
   Mail,
   ExternalLink,
+  Settings,
+  Car,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -50,7 +57,25 @@ interface DaySchedule {
 export default function InstructorDashboardPage() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"schedule" | "packages" | "hubs" | "bookings">("schedule");
+  const [activeTab, setActiveTab] = useState<"settings" | "schedule" | "packages" | "fleet" | "hubs" | "bookings">("settings");
+
+  // Site Settings state
+  const [siteSettings, setSiteSettings] = useState({
+    phone:                 "(647) 912-7040",
+    email:                 "mohadriving@gmail.com",
+    instructorName:        "Moha",
+    bannerNotice:          "",
+    baseAddress:           "1002 King Street West, Toronto, ON M6K 1J7",
+    bufferMinutes:         30,
+    lessonDurationMinutes: 90,
+    hourlyRates: {
+      g2:        55,
+      g:         60,
+      beginner:  50,
+      refresher: 55,
+    },
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // Per-day schedule state
   const [weeklySchedule, setWeeklySchedule] = useState<DaySchedule[]>([]);
@@ -70,6 +95,14 @@ export default function InstructorDashboardPage() {
   const [pkgBadge, setPkgBadge] = useState("");
   const [addingPkg, setAddingPkg] = useState(false);
 
+  // Fleet state (No image upload required)
+  const [fleetList, setFleetList] = useState<any[]>([]);
+  const [vehName, setVehName] = useState("");
+  const [vehSub, setVehSub] = useState("");
+  const [vehBadge, setVehBadge] = useState("");
+  const [vehFeatures, setVehFeatures] = useState("");
+  const [addingVehicle, setAddingVehicle] = useState(false);
+
   // Bookings state
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [bookings, setBookings] = useState<any[]>([]);
@@ -79,19 +112,15 @@ export default function InstructorDashboardPage() {
   const parseBookingDetails = (b: any) => {
     const desc = b.description || "";
 
-    // Phone parsing
     const phoneMatch = desc.match(/Phone:\s*([^\n]+)/i) || desc.match(/(\+?\d[\d\s\-\(\)]{8,}\d)/);
     const phone = phoneMatch ? phoneMatch[1].trim() : "";
 
-    // Email parsing
     const emailMatch = desc.match(/Email:\s*([^\n]+)/i);
     const email = emailMatch ? emailMatch[1].trim() : "";
 
-    // Experience level parsing
     const levelMatch = desc.match(/Level:\s*([^\n]+)/i);
     const level = levelMatch ? levelMatch[1].trim() : "";
 
-    // Student Name parsing
     let studentName = "";
     const nameMatch = desc.match(/Name:\s*([^\n]+)/i);
     if (nameMatch) {
@@ -100,7 +129,6 @@ export default function InstructorDashboardPage() {
       studentName = b.summary.replace(/^Driving Lesson:\s*/i, "").trim();
     }
 
-    // Google Maps URL parsing
     const directionsMatch = desc.match(/Directions:\s*(https?:\/\/[^\s\n]+)/i);
     const mapsUrl = directionsMatch
       ? directionsMatch[1].trim()
@@ -108,7 +136,6 @@ export default function InstructorDashboardPage() {
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.location)}`
       : null;
 
-    // Total Price parsing
     const totalMatch = desc.match(/Total:\s*\$?([0-9.]+)/i);
     const total = totalMatch ? totalMatch[1] : null;
 
@@ -135,6 +162,7 @@ export default function InstructorDashboardPage() {
     }
     setToken(stored);
     loadSettings(stored);
+    loadFleet(stored);
     loadHubs(stored);
     loadPackages();
     loadBookings(stored, selectedDate);
@@ -144,6 +172,30 @@ export default function InstructorDashboardPage() {
     try {
       const data = await getInstructorSettings(tok);
       setWeeklySchedule(data.weeklySchedule || []);
+      setSiteSettings({
+        phone:                 data.phone || "(647) 912-7040",
+        email:                 data.email || "mohadriving@gmail.com",
+        instructorName:        data.instructorName || "Moha",
+        bannerNotice:          data.bannerNotice || "",
+        baseAddress:           data.baseAddress || "1002 King Street West, Toronto, ON M6K 1J7",
+        bufferMinutes:         data.bufferMinutes ?? 30,
+        lessonDurationMinutes: data.lessonDurationMinutes ?? 90,
+        hourlyRates: {
+          g2:        data.hourlyRates?.g2 ?? 55,
+          g:         data.hourlyRates?.g ?? 60,
+          beginner:  data.hourlyRates?.beginner ?? 50,
+          refresher: data.hourlyRates?.refresher ?? 55,
+        },
+      });
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const loadFleet = async (tok: string) => {
+    try {
+      const data = await getInstructorFleet(tok);
+      setFleetList(data || []);
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -176,6 +228,20 @@ export default function InstructorDashboardPage() {
       toast.error(err.message);
     } finally {
       setLoadingBookings(false);
+    }
+  };
+
+  const handleSaveSiteSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSavingSettings(true);
+    try {
+      await updateInstructorSettings(token, siteSettings);
+      toast.success("Site settings & pricing rates updated live!");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -268,6 +334,46 @@ export default function InstructorDashboardPage() {
     }
   };
 
+  const handleAddVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setAddingVehicle(true);
+    try {
+      const featuresArray = vehFeatures
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean);
+
+      const created = await createInstructorVehicle(token, {
+        name: vehName,
+        subtitle: vehSub,
+        badgeText: vehBadge.trim() || undefined,
+        features: featuresArray.length > 0 ? featuresArray : ["Dual controls", "Automatic trans."],
+      });
+      setFleetList((prev) => [...prev, created]);
+      setVehName("");
+      setVehSub("");
+      setVehBadge("");
+      setVehFeatures("");
+      toast.success("Vehicle added to training fleet!");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setAddingVehicle(false);
+    }
+  };
+
+  const handleDeleteVehicle = async (id: string) => {
+    if (!token) return;
+    try {
+      await deleteInstructorVehicle(token, id);
+      setFleetList((prev) => prev.filter((v) => v.id !== id));
+      toast.success("Vehicle removed from fleet");
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleCancelBooking = async (id: string) => {
     if (!token || !confirm("Cancel this booking?")) return;
     try {
@@ -290,11 +396,13 @@ export default function InstructorDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-brand-600" />
-            <h1 className="text-2xl font-extrabold text-slate-900">Instructor Management Portal</h1>
+            <Shield className="h-6 w-6 text-secondary" />
+            <h1 className="text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              Instructor Management Portal
+            </h1>
           </div>
-          <p className="text-sm text-slate-500">
-            Customize daily working hours, manage pricing & packages, and auto-geocode pickup hubs.
+          <p className="text-sm text-slate-500 mt-1">
+            Manage live pricing, phone number, vehicle fleet, travel buffer, and auto-geocoded hubs.
           </p>
         </div>
 
@@ -305,31 +413,51 @@ export default function InstructorDashboardPage() {
       </div>
 
       {/* Tabs Bar */}
-      <div className="flex gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+      <div className="flex gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-hide">
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 ${
+            activeTab === "settings" ? "bg-secondary text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          <Settings className="h-4 w-4 inline mr-1.5" />
+          Site Settings & Rates
+        </button>
+
+        <button
+          onClick={() => setActiveTab("fleet")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 ${
+            activeTab === "fleet" ? "bg-secondary text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          <Car className="h-4 w-4 inline mr-1.5" />
+          Vehicle Fleet ({fleetList.length})
+        </button>
+
         <button
           onClick={() => setActiveTab("schedule")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 ${
-            activeTab === "schedule" ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 ${
+            activeTab === "schedule" ? "bg-secondary text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
           }`}
         >
           <Clock className="h-4 w-4 inline mr-1.5" />
-          Per-Day Working Hours
+          Working Hours
         </button>
 
         <button
           onClick={() => setActiveTab("packages")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 ${
-            activeTab === "packages" ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 ${
+            activeTab === "packages" ? "bg-secondary text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
           }`}
         >
           <Tag className="h-4 w-4 inline mr-1.5" />
-          Prices & Packages ({packagesList.length})
+          Lesson Packages ({packagesList.length})
         </button>
 
         <button
           onClick={() => setActiveTab("hubs")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 ${
-            activeTab === "hubs" ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 ${
+            activeTab === "hubs" ? "bg-secondary text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
           }`}
         >
           <MapPin className="h-4 w-4 inline mr-1.5" />
@@ -338,8 +466,8 @@ export default function InstructorDashboardPage() {
 
         <button
           onClick={() => setActiveTab("bookings")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 ${
-            activeTab === "bookings" ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 ${
+            activeTab === "bookings" ? "bg-secondary text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
           }`}
         >
           <Calendar className="h-4 w-4 inline mr-1.5" />
@@ -347,7 +475,260 @@ export default function InstructorDashboardPage() {
         </button>
       </div>
 
-      {/* TAB 1: PER-DAY WORKING HOURS */}
+      {/* ───── TAB 1: SITE SETTINGS & RATES ───── */}
+      {activeTab === "settings" && (
+        <Card className="p-6 space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Live Website Information & Pricing Rates</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Updates here immediately sync to the homepage fare calculator, call buttons, and dispatch buffer.
+            </p>
+          </div>
+
+          <form onSubmit={handleSaveSiteSettings} className="space-y-5">
+            {/* Contact Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone">Contact Phone Number (Displayed to Students)</Label>
+                <Input
+                  id="phone"
+                  value={siteSettings.phone}
+                  onChange={(e) => setSiteSettings({ ...siteSettings, phone: e.target.value })}
+                  placeholder="(647) 912-7040"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Contact Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={siteSettings.email}
+                  onChange={(e) => setSiteSettings({ ...siteSettings, email: e.target.value })}
+                  placeholder="mohadriving@gmail.com"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Travel Buffer Gap & Base Address */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="buffer">Pickup Gap / Travel Buffer (Minutes between lessons)</Label>
+                <Input
+                  id="buffer"
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={siteSettings.bufferMinutes}
+                  onChange={(e) => setSiteSettings({ ...siteSettings, bufferMinutes: Number(e.target.value) })}
+                  required
+                />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  e.g., 30 mins means a 30-min buffer gap is reserved between each booked lesson.
+                </span>
+              </div>
+              <div>
+                <Label htmlFor="baseAddress">Main Training Hub Address</Label>
+                <Input
+                  id="baseAddress"
+                  value={siteSettings.baseAddress}
+                  onChange={(e) => setSiteSettings({ ...siteSettings, baseAddress: e.target.value })}
+                  placeholder="1002 King Street West, Toronto, ON"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Hourly Fare Estimator Rates */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <h4 className="font-bold text-slate-800 text-sm">Fare Calculator Hourly Rates (CAD $/hour)</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <Label htmlFor="rateG2">G2 Road Test Prep</Label>
+                  <Input
+                    id="rateG2"
+                    type="number"
+                    value={siteSettings.hourlyRates.g2}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        hourlyRates: { ...siteSettings.hourlyRates, g2: Number(e.target.value) },
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rateG">G Road Test Prep</Label>
+                  <Input
+                    id="rateG"
+                    type="number"
+                    value={siteSettings.hourlyRates.g}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        hourlyRates: { ...siteSettings.hourlyRates, g: Number(e.target.value) },
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rateBeg">Beginner Lessons</Label>
+                  <Input
+                    id="rateBeg"
+                    type="number"
+                    value={siteSettings.hourlyRates.beginner}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        hourlyRates: { ...siteSettings.hourlyRates, beginner: Number(e.target.value) },
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rateRef">Refresher Lessons</Label>
+                  <Input
+                    id="rateRef"
+                    type="number"
+                    value={siteSettings.hourlyRates.refresher}
+                    onChange={(e) =>
+                      setSiteSettings({
+                        ...siteSettings,
+                        hourlyRates: { ...siteSettings.hourlyRates, refresher: Number(e.target.value) },
+                      })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Optional Banner Notice */}
+            <div>
+              <Label htmlFor="bannerNotice">Top Alert Banner Notice (Optional)</Label>
+              <Input
+                id="bannerNotice"
+                value={siteSettings.bannerNotice}
+                onChange={(e) => setSiteSettings({ ...siteSettings, bannerNotice: e.target.value })}
+                placeholder="e.g., Note: Limited slots available for this weekend's DriveTest warmup sessions."
+              />
+              <span className="text-[11px] text-slate-400 mt-1 block">
+                Leave empty to hide the announcement banner on the homepage.
+              </span>
+            </div>
+
+            <Button type="submit" disabled={savingSettings} className="w-full">
+              {savingSettings ? <Loader2 className="h-5 w-5 animate-spin" /> : "Save Site Settings & Rates"}
+            </Button>
+          </form>
+        </Card>
+      )}
+
+      {/* ───── TAB 2: VEHICLE FLEET MANAGEMENT ───── */}
+      {activeTab === "fleet" && (
+        <div className="space-y-6">
+          <Card className="p-6 space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Add Vehicle to Fleet (No Images Required)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Vehicles appear dynamically on the homepage with dual-control test-ready specifications.
+              </p>
+            </div>
+
+            <form onSubmit={handleAddVehicle} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="vehName">Vehicle Make & Model</Label>
+                  <Input
+                    id="vehName"
+                    placeholder="e.g. 2024 Hyundai Elantra"
+                    value={vehName}
+                    onChange={(e) => setVehName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vehSub">Role / Subtitle</Label>
+                  <Input
+                    id="vehSub"
+                    placeholder="e.g. Dual-control highway training"
+                    value={vehSub}
+                    onChange={(e) => setVehSub(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="vehBadge">Badge / Tag (Optional)</Label>
+                  <Input
+                    id="vehBadge"
+                    placeholder="e.g. Most Popular, DriveTest Ready"
+                    value={vehBadge}
+                    onChange={(e) => setVehBadge(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vehFeatures">Features List (Comma-separated)</Label>
+                  <Input
+                    id="vehFeatures"
+                    placeholder="Automatic trans., Dual controls, 360° camera, A/C"
+                    value={vehFeatures}
+                    onChange={(e) => setVehFeatures(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" disabled={addingVehicle} className="w-full">
+                {addingVehicle ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Vehicle to Fleet"}
+              </Button>
+            </form>
+          </Card>
+
+          <div className="space-y-3">
+            <h4 className="font-bold text-slate-800 text-sm">Active Training Vehicles ({fleetList.length})</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {fleetList.map((v) => (
+                <Card key={v.id} className="p-4 space-y-3 border-slate-200">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-bold text-slate-900 text-base">{v.name}</div>
+                      <div className="text-xs text-slate-500">{v.subtitle}</div>
+                    </div>
+                    {v.badgeText && (
+                      <Badge variant="success" className="text-xs">
+                        {v.badgeText}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {v.features?.map((f: string, i: number) => (
+                      <span key={i} className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                        ✓ {f}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex justify-end">
+                    <Button variant="danger" size="sm" onClick={() => handleDeleteVehicle(v.id)}>
+                      <Trash2 className="h-4 w-4 mr-1" /> Remove
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───── TAB 3: PER-DAY WORKING HOURS ───── */}
       {activeTab === "schedule" && (
         <Card className="p-6 space-y-6">
           <div>
@@ -371,7 +752,7 @@ export default function InstructorDashboardPage() {
                     id={`off-${day.day}`}
                     checked={!day.isOff}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleDayChange(idx, "isOff", !e.target.checked)}
-                    className="h-4 w-4 accent-brand-600 rounded"
+                    className="h-4 w-4 accent-secondary rounded"
                   />
                   <label htmlFor={`off-${day.day}`} className="font-bold text-slate-800 text-sm cursor-pointer">
                     {day.label}
@@ -417,7 +798,7 @@ export default function InstructorDashboardPage() {
         </Card>
       )}
 
-      {/* TAB 2: PRICES & PACKAGES */}
+      {/* ───── TAB 4: PRICES & PACKAGES ───── */}
       {activeTab === "packages" && (
         <div className="space-y-6">
           <Card className="p-6 space-y-4">
@@ -497,7 +878,7 @@ export default function InstructorDashboardPage() {
         </div>
       )}
 
-      {/* TAB 3: AUTO-GEOCODED PICKUP HUBS */}
+      {/* ───── TAB 5: AUTO-GEOCODED PICKUP HUBS ───── */}
       {activeTab === "hubs" && (
         <div className="space-y-6">
           <Card className="p-6 space-y-4">
@@ -554,7 +935,7 @@ export default function InstructorDashboardPage() {
         </div>
       )}
 
-      {/* TAB 4: DAILY SCHEDULE */}
+      {/* ───── TAB 6: DAILY SCHEDULE ───── */}
       {activeTab === "bookings" && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200">
@@ -579,7 +960,7 @@ export default function InstructorDashboardPage() {
 
           {loadingBookings && (
             <div className="flex items-center justify-center py-12 gap-2 text-slate-500 text-sm font-medium">
-              <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+              <Loader2 className="h-5 w-5 animate-spin text-secondary" />
               <span>Loading scheduled lessons...</span>
             </div>
           )}
@@ -605,12 +986,12 @@ export default function InstructorDashboardPage() {
                   {/* Top Header: Time Slot & Level */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-50 text-brand-700 font-extrabold text-xs tracking-wide">
-                        <Clock className="h-3.5 w-3.5 text-brand-600" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary-container/20 text-secondary font-extrabold text-xs tracking-wide">
+                        <Clock className="h-3.5 w-3.5 text-secondary" />
                         {details.timeRange}
                       </span>
                       {details.level && (
-                        <Badge variant="default" className="capitalize text-xs font-bold border-brand-200 text-brand-800 bg-brand-50/50">
+                        <Badge variant="default" className="capitalize text-xs font-bold border-secondary-container/40 text-secondary bg-secondary-container/10">
                           {details.level}
                         </Badge>
                       )}
@@ -628,7 +1009,7 @@ export default function InstructorDashboardPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-slate-900 font-extrabold text-base">
                         <div className="p-2 rounded-xl bg-slate-100 text-slate-700">
-                          <User className="h-4 w-4 text-brand-600" />
+                          <User className="h-4 w-4 text-secondary" />
                         </div>
                         <span>{details.studentName}</span>
                       </div>
@@ -640,7 +1021,7 @@ export default function InstructorDashboardPage() {
                             {/* INSTANT CALL BUTTON */}
                             <a
                               href={`tel:${details.phone}`}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs transition-all shadow-sm shrink-0"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/90 active:scale-95 text-white font-extrabold text-xs transition-all shadow-sm shrink-0"
                             >
                               <Phone className="h-3.5 w-3.5 fill-current" />
                               <span>Call Client ({details.phone})</span>
@@ -658,7 +1039,7 @@ export default function InstructorDashboardPage() {
                               className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors shrink-0"
                               title="Copy Phone"
                             >
-                              {isCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                              {isCopied ? <Check className="h-4 w-4 text-secondary" /> : <Copy className="h-4 w-4" />}
                             </button>
                           </div>
                         </div>
@@ -678,7 +1059,7 @@ export default function InstructorDashboardPage() {
                     <div className="space-y-3 bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 flex flex-col justify-between">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                          <MapPin className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                          <MapPin className="h-3.5 w-3.5 text-secondary shrink-0" />
                           <span>Pickup Address</span>
                         </div>
                         <p className="text-xs font-medium text-slate-800 leading-relaxed pl-5">
@@ -691,9 +1072,9 @@ export default function InstructorDashboardPage() {
                           href={details.mapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-white border border-slate-200 hover:border-brand-500 text-brand-700 hover:text-brand-800 font-bold text-xs transition-all shadow-2xs hover:shadow-xs mt-2"
+                          className="inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl bg-white border border-slate-200 hover:border-secondary text-secondary font-bold text-xs transition-all shadow-2xs hover:shadow-xs mt-2"
                         >
-                          <ExternalLink className="h-3.5 w-3.5 text-brand-600" />
+                          <ExternalLink className="h-3.5 w-3.5 text-secondary" />
                           <span>Open Google Maps Directions</span>
                         </a>
                       )}

@@ -1,12 +1,37 @@
-import type { LocationValidateResponse, AvailabilityResponse, BookingConfirmationResponse, LessonTypeOption } from "./types";
+import type {
+  LocationValidateResponse,
+  AvailabilityResponse,
+  BookingConfirmationResponse,
+  LessonTypeOption,
+  PublicSettings,
+  VehicleItem,
+} from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://moha-api.fly.dev/api/v1";
+
+export async function getPublicSettings(): Promise<PublicSettings> {
+  const res = await fetch(`${API_BASE}/settings`);
+  const json = (await res.json()) as any;
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || "Failed to fetch settings");
+  }
+  return json.data;
+}
 
 export async function getPublicPackages(): Promise<LessonTypeOption[]> {
   const res = await fetch(`${API_BASE}/packages`);
   const json = (await res.json()) as any;
   if (!res.ok || !json.success) {
     throw new Error(json.error?.message || "Failed to fetch lesson packages");
+  }
+  return json.data;
+}
+
+export async function getPublicFleet(): Promise<VehicleItem[]> {
+  const res = await fetch(`${API_BASE}/fleet`);
+  const json = (await res.json()) as any;
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || "Failed to fetch fleet");
   }
   return json.data;
 }
@@ -78,6 +103,20 @@ export async function getInstructorSettings(token: string) {
   return json.data;
 }
 
+export async function updateInstructorSettings(token: string, updates: any) {
+  const res = await fetch(`${API_BASE}/instructor/settings`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(updates),
+  });
+  const json = (await res.json()) as any;
+  if (!res.ok || !json.success) throw new Error(json.error?.message || "Failed to update settings");
+  return json.data;
+}
+
 export async function updateInstructorWeeklySchedule(token: string, schedule: any[]) {
   const res = await fetch(`${API_BASE}/instructor/schedule`, {
     method: "PUT",
@@ -146,6 +185,39 @@ export async function deleteInstructorPackage(token: string, id: string) {
   });
   const json = (await res.json()) as any;
   if (!res.ok || !json.success) throw new Error(json.error?.message || "Failed to delete package");
+  return json.data;
+}
+
+export async function getInstructorFleet(token: string) {
+  const res = await fetch(`${API_BASE}/instructor/fleet`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = (await res.json()) as any;
+  if (!res.ok || !json.success) throw new Error(json.error?.message || "Failed to fetch fleet");
+  return json.data;
+}
+
+export async function createInstructorVehicle(token: string, vehicle: Omit<VehicleItem, "id">) {
+  const res = await fetch(`${API_BASE}/instructor/fleet`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(vehicle),
+  });
+  const json = (await res.json()) as any;
+  if (!res.ok || !json.success) throw new Error(json.error?.message || "Failed to add vehicle");
+  return json.data;
+}
+
+export async function deleteInstructorVehicle(token: string, id: string) {
+  const res = await fetch(`${API_BASE}/instructor/fleet/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = (await res.json()) as any;
+  if (!res.ok || !json.success) throw new Error(json.error?.message || "Failed to delete vehicle");
   return json.data;
 }
 
