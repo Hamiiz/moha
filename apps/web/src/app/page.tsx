@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getPublicSettings, getPublicFleet } from "@/lib/api";
-import type { PublicSettings, VehicleItem } from "@/lib/types";
+import { getPublicSettings, getPublicFleet, getPublicReviews } from "@/lib/api";
+import type { PublicSettings, VehicleItem, ReviewsData } from "@/lib/types";
 
 // ─── Default Fallbacks ────────────────────────────────────────────────────────
 const DEFAULT_RATES = {
@@ -32,44 +32,53 @@ const DEFAULT_FLEET: VehicleItem[] = [
   },
 ];
 
-// ─── Review data ─────────────────────────────────────────────────────────────
-const REVIEWS = [
-  {
-    initials: "A",
-    name: "Aisha K.",
-    meta: "G2 · Toronto · 2 months ago",
-    quote:
-      "Passed my G2 first try. Moha is incredibly patient and knows every road examiner's expectations. Worth every dollar.",
-  },
-  {
-    initials: "M",
-    name: "Marcus L.",
-    meta: "G · Downtown Toronto · 3 months ago",
-    quote:
-      "Took my G test after just 2 sessions. The route practice was exactly what DriveTest uses. Highly recommend.",
-  },
-  {
-    initials: "S",
-    name: "Sara P.",
-    meta: "G2 · North York · 1 month ago",
-    quote:
-      "Best instructor in Toronto. Showed up on time, very professional, and the pickup from home was super convenient.",
-  },
-  {
-    initials: "J",
-    name: "Jordan T.",
-    meta: "G2 · Etobicoke · 2 weeks ago",
-    quote:
-      "I was so nervous before my test. After 2 lessons with Moha, I felt confident. Passed! Thank you so much.",
-  },
-  {
-    initials: "R",
-    name: "Rania M.",
-    meta: "G · Scarborough · 1 month ago",
-    quote:
-      "Super detail oriented. He showed me exact spots where examiners watch for errors. Passed my G with zero demerits.",
-  },
-];
+const DEFAULT_REVIEWS: ReviewsData = {
+  rating: 4.9,
+  userRatingsTotal: 85,
+  googleMapsUrl: "https://maps.google.com",
+  reviews: [
+    {
+      id: "r1",
+      authorName: "Aisha K.",
+      rating: 5,
+      relativeTime: "2 months ago",
+      text: "Passed my G2 first try. Moha is incredibly patient and knows every road examiner's expectations. Worth every dollar.",
+      initials: "A",
+    },
+    {
+      id: "r2",
+      authorName: "Marcus L.",
+      rating: 5,
+      relativeTime: "3 months ago",
+      text: "Took my G test after just 2 sessions. The route practice was exactly what DriveTest uses. Highly recommend.",
+      initials: "M",
+    },
+    {
+      id: "r3",
+      authorName: "Sara P.",
+      rating: 5,
+      relativeTime: "1 month ago",
+      text: "Best instructor in West Toronto. Showed up on time, very professional, and the pickup from home was super convenient.",
+      initials: "S",
+    },
+    {
+      id: "r4",
+      authorName: "Jordan T.",
+      rating: 5,
+      relativeTime: "2 weeks ago",
+      text: "I was so nervous before my test. After 2 lessons with Moha, I felt confident. Passed! Thank you so much.",
+      initials: "J",
+    },
+    {
+      id: "r5",
+      authorName: "Rania M.",
+      rating: 5,
+      relativeTime: "1 month ago",
+      text: "Super detail oriented. He showed me exact spots where examiners watch for errors. Passed my G with zero demerits.",
+      initials: "R",
+    },
+  ],
+};
 
 export default function HomePage() {
   const [settings, setSettings] = useState<PublicSettings>({
@@ -84,6 +93,7 @@ export default function HomePage() {
   });
 
   const [fleet, setFleet] = useState<VehicleItem[]>(DEFAULT_FLEET);
+  const [reviewsData, setReviewsData] = useState<ReviewsData>(DEFAULT_REVIEWS);
   const [lessonType, setLessonType] = useState<keyof typeof DEFAULT_RATES>("g2");
   const [hours, setHours] = useState(2);
 
@@ -97,6 +107,14 @@ export default function HomePage() {
     getPublicFleet()
       .then((data) => {
         if (data && data.length > 0) setFleet(data);
+      })
+      .catch(() => {});
+
+    getPublicReviews()
+      .then((data) => {
+        if (data && data.reviews && data.reviews.length > 0) {
+          setReviewsData(data);
+        }
       })
       .catch(() => {});
   }, []);
@@ -215,7 +233,7 @@ export default function HomePage() {
                 <div className="w-px h-10 bg-white/10" />
                 <div>
                   <div className="text-[#82f5c1] font-bold text-[22px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                    4.9★
+                    {reviewsData.rating}★
                   </div>
                   <div className="text-[#bec6e0] text-[12px]">Google rating</div>
                 </div>
@@ -362,7 +380,7 @@ export default function HomePage() {
               { icon: "schedule", text: "Same-week availability" },
               { icon: "location_on", text: "Pickup anywhere in West Toronto & GTA" },
               { icon: "payments", text: "e-Transfer · Cash · No hidden fees" },
-              { icon: "star", text: "4.9★ on Google" },
+              { icon: "star", text: `${reviewsData.rating}★ on Google` },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-2 whitespace-nowrap">
                 {i > 0 && <div className="w-px h-4 bg-white/10 flex-shrink-0" />}
@@ -602,54 +620,88 @@ export default function HomePage() {
                 Students Who Passed First Try
               </h2>
             </div>
-            <div className="hidden md:flex items-center gap-2">
-              <div
-                className="text-[#0b1c30] font-bold text-[32px]"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                4.9
-              </div>
-              <div>
-                <div className="flex gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <span key={i} className="material-symbols-outlined filled text-[#f59e0b] text-[16px]">
-                      star
-                    </span>
-                  ))}
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="text-[#0b1c30] font-bold text-[32px] leading-none"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  {reviewsData.rating.toFixed(1)}
                 </div>
-                <div className="text-on-surface-variant text-[12px]">from 85+ Google reviews</div>
+                <div>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="material-symbols-outlined filled text-[#f59e0b] text-[16px]">
+                        star
+                      </span>
+                    ))}
+                  </div>
+                  <div className="text-on-surface-variant text-[12px]">from {reviewsData.userRatingsTotal}+ Google reviews</div>
+                </div>
               </div>
+
+              {reviewsData.googleMapsUrl && (
+                <a
+                  href={reviewsData.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container border border-outline-variant text-[12px] font-semibold text-secondary hover:bg-secondary-container/20 transition-colors"
+                  style={{ borderRadius: "0.25rem" }}
+                >
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                  Google Maps Profile
+                </a>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Scrolling ticker — duplicate for seamless loop */}
+        {/* Scrolling ticker — duplicate for seamless continuous loop */}
         <div className="overflow-hidden">
           <div className="review-track">
-            {[...REVIEWS, ...REVIEWS].map((r, i) => (
+            {(reviewsData.reviews.length >= 6
+              ? [...reviewsData.reviews, ...reviewsData.reviews]
+              : [...reviewsData.reviews, ...reviewsData.reviews, ...reviewsData.reviews, ...reviewsData.reviews]
+            ).map((r, i) => (
               <div
-                key={i}
-                className="w-72 flex-shrink-0 bg-surface-container-lowest border border-outline-variant p-5"
+                key={`${r.id}-${i}`}
+                className="w-80 flex-shrink-0 bg-surface-container-lowest border border-outline-variant p-5 flex flex-col justify-between"
                 style={{ borderRadius: "0.5rem" }}
               >
-                <div className="flex gap-0.5 mb-3">
-                  {[...Array(5)].map((_, j) => (
-                    <span key={j} className="material-symbols-outlined filled text-[#f59e0b] text-[14px]">
-                      star
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex gap-0.5">
+                      {[...Array(r.rating || 5)].map((_, j) => (
+                        <span key={j} className="material-symbols-outlined filled text-[#f59e0b] text-[14px]">
+                          star
+                        </span>
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-on-surface-variant font-medium flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px] text-[#006c4a]">verified</span>
+                      Google
                     </span>
-                  ))}
-                </div>
-                <p className="text-on-surface text-[14px] leading-[22px] mb-4">"{r.quote}"</p>
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-7 h-7 bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-[12px]"
-                    style={{ borderRadius: "50%" }}
-                  >
-                    {r.initials}
                   </div>
-                  <div>
-                    <div className="text-on-surface font-semibold text-[13px]">{r.name}</div>
-                    <div className="text-on-surface-variant text-[11px]">{r.meta}</div>
+                  <p className="text-on-surface text-[13px] leading-[21px] mb-4 line-clamp-4">"{r.text}"</p>
+                </div>
+                <div className="flex items-center gap-2.5 pt-2 border-t border-outline-variant/40">
+                  {r.profilePhotoUrl ? (
+                    <img
+                      src={r.profilePhotoUrl}
+                      alt={r.authorName}
+                      className="w-7 h-7 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-7 h-7 bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-[12px]"
+                      style={{ borderRadius: "50%" }}
+                    >
+                      {r.initials}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-on-surface font-semibold text-[13px] truncate">{r.authorName}</div>
+                    <div className="text-on-surface-variant text-[11px] truncate">{r.relativeTime}</div>
                   </div>
                 </div>
               </div>

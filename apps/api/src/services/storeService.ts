@@ -39,6 +39,25 @@ export interface VehicleItem {
   features:    string[];      // e.g. ["Automatic trans.", "Dual controls", "360° backup cam", "A/C + heated seats"]
 }
 
+export interface GoogleReviewItem {
+  id:               string;
+  authorName:       string;
+  rating:           number;
+  relativeTime:     string;
+  text:             string;
+  profilePhotoUrl?: string;
+  initials:         string;
+}
+
+export interface ReviewsData {
+  rating:           number;
+  userRatingsTotal: number;
+  googleMapsUrl?:   string;
+  lastSyncedAt?:    string;
+  placeId?:         string;
+  reviews:          GoogleReviewItem[];
+}
+
 export interface HourlyRates {
   g2:        number;
   g:         number;
@@ -60,6 +79,7 @@ export interface InstructorSettings {
   maxServiceRadiusKm:    number;
   surchargePerKm:        number;
   weeklySchedule:        DaySchedule[];
+  googlePlaceId?:        string;
 }
 
 // Default initial state
@@ -139,16 +159,67 @@ let fleet: VehicleItem[] = [
   },
 ];
 
+let reviewsData: ReviewsData = {
+  rating: 4.9,
+  userRatingsTotal: 85,
+  googleMapsUrl: "https://maps.google.com",
+  lastSyncedAt: new Date().toISOString(),
+  placeId: env.GOOGLE_PLACE_ID || "",
+  reviews: [
+    {
+      id: "gr-1",
+      authorName: "Aisha K.",
+      rating: 5,
+      relativeTime: "2 months ago",
+      text: "Passed my G2 first try. Moha is incredibly patient and knows every road examiner's expectations. Worth every dollar.",
+      initials: "A",
+    },
+    {
+      id: "gr-2",
+      authorName: "Marcus L.",
+      rating: 5,
+      relativeTime: "3 months ago",
+      text: "Took my G test after just 2 sessions. The route practice was exactly what DriveTest uses. Highly recommend.",
+      initials: "M",
+    },
+    {
+      id: "gr-3",
+      authorName: "Sara P.",
+      rating: 5,
+      relativeTime: "1 month ago",
+      text: "Best instructor in West Toronto. Showed up on time, very professional, and the pickup from home was super convenient.",
+      initials: "S",
+    },
+    {
+      id: "gr-4",
+      authorName: "Jordan T.",
+      rating: 5,
+      relativeTime: "2 weeks ago",
+      text: "I was so nervous before my test. After 2 lessons with Moha, I felt confident. Passed! Thank you so much.",
+      initials: "J",
+    },
+    {
+      id: "gr-5",
+      authorName: "Rania M.",
+      rating: 5,
+      relativeTime: "1 month ago",
+      text: "Super detail oriented. He showed me exact spots where examiners watch for errors. Passed my G with zero demerits.",
+      initials: "R",
+    },
+  ],
+};
+
 // ── Persistence Setup: PostgreSQL (Neon / Supabase) or Local JSON Fallback ────
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
 
 interface PersistedState {
-  settings:   InstructorSettings;
-  pickupHubs: PickupHubItem[];
-  packages:   LessonPackageItem[];
-  fleet:      VehicleItem[];
+  settings:    InstructorSettings;
+  pickupHubs:  PickupHubItem[];
+  packages:    LessonPackageItem[];
+  fleet:       VehicleItem[];
+  reviewsData: ReviewsData;
 }
 
 let pool: pg.Pool | null = null;
@@ -171,7 +242,7 @@ function saveLocalDisk(): void {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    const data: PersistedState = { settings, pickupHubs, packages, fleet };
+    const data: PersistedState = { settings, pickupHubs, packages, fleet, reviewsData };
     fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), "utf-8");
     logger.debug({ path: STORE_FILE }, "Saved store.json backup to disk");
   } catch (err) {
@@ -188,6 +259,7 @@ function loadLocalDisk(): void {
       if (parsed.pickupHubs) pickupHubs = parsed.pickupHubs;
       if (parsed.packages) packages = parsed.packages;
       if (parsed.fleet) fleet = parsed.fleet;
+      if (parsed.reviewsData) reviewsData = parsed.reviewsData;
       logger.info({ path: STORE_FILE }, "Loaded persisted state from local store.json");
     } else {
       saveLocalDisk();
@@ -211,7 +283,7 @@ async function initDb(): Promise<void> {
 
     // Load from DB
     const res = await pool.query<{ key: string; data: any }>(
-      "SELECT key, data FROM moha_store WHERE key IN ('settings', 'pickupHubs', 'packages', 'fleet')"
+      "SELECT key, data FROM moha_store WHERE key IN ('settings', 'pickupHubs', 'packages', 'fleet', 'reviews')"
     );
 
     if (res.rows.length > 0) {
@@ -220,6 +292,7 @@ async function initDb(): Promise<void> {
         if (row.key === "pickupHubs" && Array.isArray(row.data)) pickupHubs = row.data;
         if (row.key === "packages" && Array.isArray(row.data)) packages = row.data;
         if (row.key === "fleet" && Array.isArray(row.data)) fleet = row.data;
+        if (row.key === "reviews" && row.data) reviewsData = row.data;
       }
       logger.info("Successfully hydrated store from PostgreSQL (Neon/Supabase)");
       saveLocalDisk(); // Keep disk in sync
@@ -229,6 +302,7 @@ async function initDb(): Promise<void> {
       await saveKeyToDb("pickupHubs", pickupHubs);
       await saveKeyToDb("packages", packages);
       await saveKeyToDb("fleet", fleet);
+      await saveKeyToDb("reviews", reviewsData);
       logger.info("Seeded initial store state into PostgreSQL (Neon/Supabase)");
     }
   } catch (err) {
@@ -251,8 +325,10 @@ async function saveKeyToDb(key: string, data: any): Promise<void> {
   }
 }
 
+type StoreKey = "settings" | "pickupHubs" | "packages" | "fleet" | "reviews";
+
 // Trigger state persistence whenever data updates
-function persistAll(keys: ("settings" | "pickupHubs" | "packages" | "fleet")[] = ["settings", "pickupHubs", "packages", "fleet"]): void {
+function persistAll(keys: StoreKey[] = ["settings", "pickupHubs", "packages", "fleet", "reviews"]): void {
   saveLocalDisk();
   if (pool) {
     for (const key of keys) {
@@ -260,6 +336,7 @@ function persistAll(keys: ("settings" | "pickupHubs" | "packages" | "fleet")[] =
       if (key === "pickupHubs") saveKeyToDb("pickupHubs", pickupHubs);
       if (key === "packages") saveKeyToDb("packages", packages);
       if (key === "fleet") saveKeyToDb("fleet", fleet);
+      if (key === "reviews") saveKeyToDb("reviews", reviewsData);
     }
   }
 }
@@ -375,4 +452,18 @@ export function updateVehicle(id: string, updates: Partial<Omit<VehicleItem, "id
   fleet[index] = { ...fleet[index]!, ...updates };
   persistAll(["fleet"]);
   return fleet[index]!;
+}
+
+export function getReviews(): ReviewsData {
+  return { ...reviewsData, reviews: [...reviewsData.reviews] };
+}
+
+export function updateReviews(data: Partial<ReviewsData>): ReviewsData {
+  reviewsData = {
+    ...reviewsData,
+    ...data,
+    reviews: data.reviews ? [...data.reviews] : reviewsData.reviews,
+  };
+  persistAll(["reviews"]);
+  return getReviews();
 }

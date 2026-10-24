@@ -68,6 +68,7 @@ export interface PublicSettings {
   bufferMinutes: number;
   lessonDurationMinutes: number;
   baseAddress: string;
+  googlePlaceId?: string;
 }
 
 export interface VehicleItem {
@@ -77,4 +78,23 @@ export interface VehicleItem {
   badgeText?: string;
   badgeIcon?: string;
   features: string[];
+}
+
+export interface GoogleReviewItem {
+  id: string;
+  authorName: string;
+  rating: number;
+  relativeTime: string;
+  text: string;
+  profilePhotoUrl?: string;
+  initials: string;
+}
+
+export interface ReviewsData {
+  rating: number;
+  userRatingsTotal: number;
+  googleMapsUrl?: string;
+  lastSyncedAt?: string;
+  placeId?: string;
+  reviews: GoogleReviewItem[];
 }

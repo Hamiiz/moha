@@ -25,6 +25,7 @@ import {
   deleteVehicleHandler,
   getInstructorBookingsHandler,
   deleteInstructorBookingHandler,
+  syncReviewsInstructorHandler,
 } from "../controllers/instructorController.js";
 
 const router: Router = Router();
@@ -59,5 +60,8 @@ router.delete("/fleet/:id", deleteVehicleHandler);
 // Bookings
 router.get("/bookings", getInstructorBookingsHandler);
 router.delete("/bookings/:id", deleteInstructorBookingHandler);
+
+// Google Business Reviews Sync
+router.post("/reviews/sync", syncReviewsInstructorHandler);
 
 export default router;

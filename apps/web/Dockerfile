@@ -29,6 +29,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY --from=prune /app/out/full/ .
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN mkdir -p /app/apps/web/public
 RUN pnpm turbo run build --filter=web
 
 # ---------------------------------------------------------------------------

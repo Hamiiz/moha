@@ -22,6 +22,7 @@ import {
   deleteInstructorVehicle,
   getInstructorBookings,
   deleteInstructorBooking,
+  syncGoogleReviews,
 } from "@/lib/api";
 import {
   Clock,
@@ -43,6 +44,8 @@ import {
   Settings,
   Car,
   AlertCircle,
+  Star,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -68,6 +71,7 @@ export default function InstructorDashboardPage() {
     baseAddress:           "1002 King Street West, Toronto, ON M6K 1J7",
     bufferMinutes:         30,
     lessonDurationMinutes: 90,
+    googlePlaceId:         "",
     hourlyRates: {
       g2:        55,
       g:         60,
@@ -76,6 +80,7 @@ export default function InstructorDashboardPage() {
     },
   });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [syncingReviews, setSyncingReviews] = useState(false);
 
   // Per-day schedule state
   const [weeklySchedule, setWeeklySchedule] = useState<DaySchedule[]>([]);
@@ -180,6 +185,7 @@ export default function InstructorDashboardPage() {
         baseAddress:           data.baseAddress || "1002 King Street West, Toronto, ON M6K 1J7",
         bufferMinutes:         data.bufferMinutes ?? 30,
         lessonDurationMinutes: data.lessonDurationMinutes ?? 90,
+        googlePlaceId:         data.googlePlaceId || "",
         hourlyRates: {
           g2:        data.hourlyRates?.g2 ?? 55,
           g:         data.hourlyRates?.g ?? 60,
@@ -242,6 +248,23 @@ export default function InstructorDashboardPage() {
       toast.error(err.message);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleSyncReviews = async () => {
+    if (!token) return;
+    setSyncingReviews(true);
+    try {
+      const res = await syncGoogleReviews(token, true);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync reviews");
+    } finally {
+      setSyncingReviews(false);
     }
   };
 
@@ -619,6 +642,47 @@ export default function InstructorDashboardPage() {
               <span className="text-[11px] text-slate-400 mt-1 block">
                 Leave empty to hide the announcement banner on the homepage.
               </span>
+            </div>
+
+            {/* Google Business Reviews Integration */}
+            <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                  <h4 className="font-bold text-slate-800 text-sm">Google Business Reviews</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSyncReviews}
+                  disabled={syncingReviews}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${syncingReviews ? "animate-spin" : ""}`} />
+                  {syncingReviews ? "Syncing..." : "Sync from Google Now"}
+                </button>
+              </div>
+
+              <div>
+                <Label htmlFor="googlePlaceId">Google Place ID (Unique Business Identifier)</Label>
+                <Input
+                  id="googlePlaceId"
+                  value={siteSettings.googlePlaceId || ""}
+                  onChange={(e) => setSiteSettings({ ...siteSettings, googlePlaceId: e.target.value })}
+                  placeholder="e.g., ChIJ... (from Google Place ID Finder)"
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                  <span>Reviews update every 1–3 weeks automatically or whenever you tap Sync Now.</span>
+                  <a
+                    href="https://developers.google.com/maps/documentation/places/web-service/place-id"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-secondary font-semibold hover:underline inline-flex items-center gap-0.5"
+                  >
+                    Find your Place ID
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
             </div>
 
             <Button type="submit" disabled={savingSettings} className="w-full">

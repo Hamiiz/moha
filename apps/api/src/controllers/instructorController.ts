@@ -18,7 +18,9 @@ import {
   addVehicle,
   updateVehicle,
   deleteVehicle,
+  getReviews,
 } from "../services/storeService.js";
+import { syncGoogleReviews } from "../services/googleReviewsService.js";
 import { getEventsForDate, deleteCalendarEvent } from "../services/calendarService.js";
 
 // ── Validation Schemas ───────────────────────────────────────────────────────
@@ -67,6 +69,7 @@ export const SettingsUpdateSchema = z.object({
   baseLng:               z.number().optional(),
   maxServiceRadiusKm:    z.number().positive().optional(),
   surchargePerKm:        z.number().min(0).optional(),
+  googlePlaceId:         z.string().optional(),
 });
 
 export const DayScheduleSchema = z.object({
@@ -309,6 +312,26 @@ export async function deleteInstructorBookingHandler(req: Request, res: Response
     const id = String(req.params["id"] || "");
     await deleteCalendarEvent(id);
     res.json({ success: true, data: { message: "Booking cancelled successfully" } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Google Reviews Handlers ──────────────────────────────────────────────────
+
+export async function getReviewsPublicHandler(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ success: true, data: getReviews() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function syncReviewsInstructorHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const force = req.query["force"] === "true" || req.body?.force === true;
+    const result = await syncGoogleReviews(force);
+    res.json(result);
   } catch (err) {
     next(err);
   }

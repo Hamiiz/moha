@@ -5,6 +5,7 @@ import type {
   LessonTypeOption,
   PublicSettings,
   VehicleItem,
+  ReviewsData,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://moha-api.fly.dev/api/v1";
@@ -14,6 +15,15 @@ export async function getPublicSettings(): Promise<PublicSettings> {
   const json = (await res.json()) as any;
   if (!res.ok || !json.success) {
     throw new Error(json.error?.message || "Failed to fetch settings");
+  }
+  return json.data;
+}
+
+export async function getPublicReviews(): Promise<ReviewsData> {
+  const res = await fetch(`${API_BASE}/reviews`);
+  const json = (await res.json()) as any;
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || "Failed to fetch reviews");
   }
   return json.data;
 }
@@ -238,4 +248,20 @@ export async function deleteInstructorBooking(token: string, id: string) {
   const json = (await res.json()) as any;
   if (!res.ok || !json.success) throw new Error(json.error?.message || "Failed to cancel booking");
   return json.data;
+}
+
+export async function syncGoogleReviews(
+  token: string,
+  force = true
+): Promise<{ success: boolean; data: ReviewsData; message: string }> {
+  const res = await fetch(`${API_BASE}/instructor/reviews/sync`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ force }),
+  });
+  const json = (await res.json()) as any;
+  return json;
 }

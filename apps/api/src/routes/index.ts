@@ -7,6 +7,7 @@ import {
   listPackagesPublicHandler,
   getPublicSettingsHandler,
   listFleetPublicHandler,
+  getReviewsPublicHandler,
 } from "../controllers/instructorController.js";
 
 const router: Router = Router();
@@ -15,6 +16,7 @@ const router: Router = Router();
 router.get("/packages",     listPackagesPublicHandler);
 router.get("/settings",     getPublicSettingsHandler);
 router.get("/fleet",        listFleetPublicHandler);
+router.get("/reviews",      getReviewsPublicHandler);
 
 router.use("/location",     locationRouter);
 router.use("/availability", availabilityRouter);

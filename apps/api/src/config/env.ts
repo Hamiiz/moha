@@ -44,6 +44,10 @@ const EnvSchema = z.object({
   // Persistence: Neon / Supabase PostgreSQL URL
   DATABASE_URL:         z.string().optional(),
 
+  // Google Places API (for Google Business reviews)
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
+  GOOGLE_PLACE_ID:       z.string().optional(),
+
   // CORS
   CORS_ORIGIN:          z.string().default("*"),
 });
