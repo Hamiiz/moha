@@ -12,7 +12,7 @@ primary_region = 'ams'
   NEXT_PUBLIC_API_URL = 'https://moha-api.fly.dev/api/v1'
 
 [http_service]
-  internal_port = 3000
+  internal_port = 3001
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
