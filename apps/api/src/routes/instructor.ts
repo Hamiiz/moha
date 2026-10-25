@@ -25,6 +25,9 @@ import {
   deleteVehicleHandler,
   getInstructorBookingsHandler,
   deleteInstructorBookingHandler,
+  getReviewsPublicHandler,
+  updateReviewsInstructorHandler,
+  deleteReviewInstructorHandler,
   syncReviewsInstructorHandler,
 } from "../controllers/instructorController.js";
 
@@ -61,7 +64,10 @@ router.delete("/fleet/:id", deleteVehicleHandler);
 router.get("/bookings", getInstructorBookingsHandler);
 router.delete("/bookings/:id", deleteInstructorBookingHandler);
 
-// Google Business Reviews Sync
+// Google Business Reviews Management & Sync
+router.get("/reviews", getReviewsPublicHandler);
+router.put("/reviews", updateReviewsInstructorHandler);
+router.delete("/reviews/:id", deleteReviewInstructorHandler);
 router.post("/reviews/sync", syncReviewsInstructorHandler);
 
 export default router;

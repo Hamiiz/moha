@@ -23,7 +23,11 @@ import {
   getInstructorBookings,
   deleteInstructorBooking,
   syncGoogleReviews,
+  getPublicReviews,
+  updateInstructorReviews,
+  deleteInstructorReview,
 } from "@/lib/api";
+import type { GoogleReviewItem, ReviewsData } from "@/lib/types";
 import {
   Clock,
   MapPin,
@@ -114,6 +118,15 @@ export default function InstructorDashboardPage() {
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
 
+  // Reviews state
+  const [reviewsData, setReviewsData] = useState<ReviewsData | null>(null);
+  const [showAddReviewForm, setShowAddReviewForm] = useState(false);
+  const [newReviewAuthor, setNewReviewAuthor] = useState("");
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewTime, setNewReviewTime] = useState("1 week ago");
+  const [newReviewText, setNewReviewText] = useState("");
+  const [addingReview, setAddingReview] = useState(false);
+
   const parseBookingDetails = (b: any) => {
     const desc = b.description || "";
 
@@ -170,8 +183,77 @@ export default function InstructorDashboardPage() {
     loadFleet(stored);
     loadHubs(stored);
     loadPackages();
+    loadReviewsData();
     loadBookings(stored, selectedDate);
   }, []);
+
+  const loadReviewsData = async () => {
+    try {
+      const data = await getPublicReviews();
+      if (data) setReviewsData(data);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSyncReviews = async () => {
+    if (!token) return;
+    setSyncingReviews(true);
+    try {
+      const res = await syncGoogleReviews(token, true);
+      if (res.success) {
+        toast.success(res.message);
+        await loadReviewsData();
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync reviews");
+    } finally {
+      setSyncingReviews(false);
+    }
+  };
+
+  const handleAddReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !newReviewAuthor.trim() || !newReviewText.trim()) return;
+    setAddingReview(true);
+    try {
+      const newReview: GoogleReviewItem = {
+        id: `custom-${Date.now()}`,
+        authorName: newReviewAuthor.trim(),
+        rating: Number(newReviewRating) || 5,
+        relativeTime: newReviewTime.trim() || "Recent",
+        text: newReviewText.trim(),
+        initials: newReviewAuthor.trim().charAt(0).toUpperCase() || "U",
+      };
+      const existing = reviewsData?.reviews || [];
+      const updatedList = [newReview, ...existing];
+      const updated = await updateInstructorReviews(token, { reviews: updatedList });
+      setReviewsData(updated);
+      setNewReviewAuthor("");
+      setNewReviewText("");
+      setNewReviewRating(5);
+      setNewReviewTime("1 week ago");
+      setShowAddReviewForm(false);
+      toast.success("New review added live to the homepage!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add review");
+    } finally {
+      setAddingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!token) return;
+    try {
+      const updated = await deleteInstructorReview(token, id);
+      setReviewsData(updated);
+      toast.success("Review deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete review");
+    }
+  };
 
   const loadSettings = async (tok: string) => {
     try {
@@ -248,23 +330,6 @@ export default function InstructorDashboardPage() {
       toast.error(err.message);
     } finally {
       setSavingSettings(false);
-    }
-  };
-
-  const handleSyncReviews = async () => {
-    if (!token) return;
-    setSyncingReviews(true);
-    try {
-      const res = await syncGoogleReviews(token, true);
-      if (res.success) {
-        toast.success(res.message);
-      } else {
-        toast.error(res.message);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to sync reviews");
-    } finally {
-      setSyncingReviews(false);
     }
   };
 
@@ -645,22 +710,54 @@ export default function InstructorDashboardPage() {
             </div>
 
             {/* Google Business Reviews Integration */}
-            <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                   <h4 className="font-bold text-slate-800 text-sm">Google Business Reviews</h4>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSyncReviews}
-                  disabled={syncingReviews}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${syncingReviews ? "animate-spin" : ""}`} />
-                  {syncingReviews ? "Syncing..." : "Sync from Google Now"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddReviewForm(!showAddReviewForm)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-md hover:bg-emerald-50 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {showAddReviewForm ? "Close Form" : "Add Review"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncReviews}
+                    disabled={syncingReviews}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${syncingReviews ? "animate-spin" : ""}`} />
+                    {syncingReviews ? "Syncing..." : "Sync from Google Now"}
+                  </button>
+                </div>
               </div>
+
+              {/* Live Badge */}
+              {reviewsData && (
+                <div className="flex flex-wrap items-center gap-2 py-1.5 px-3 bg-white/90 rounded-lg border border-emerald-200/60 text-xs">
+                  <span className="font-bold text-slate-800 flex items-center gap-1">
+                    <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                    {reviewsData.rating.toFixed(1)}★
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-600">{reviewsData.userRatingsTotal}+ Google Reviews</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-emerald-700 font-medium">{reviewsData.reviews.length} Active Cards on Homepage</span>
+                  {reviewsData.lastSyncedAt && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-400 text-[11px]">
+                        Last checked: {new Date(reviewsData.lastSyncedAt).toLocaleDateString()}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="googlePlaceId">Google Place ID (Unique Business Identifier)</Label>
@@ -671,7 +768,7 @@ export default function InstructorDashboardPage() {
                   placeholder="e.g., ChIJ... (from Google Place ID Finder)"
                 />
                 <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
-                  <span>Reviews update every 1–3 weeks automatically or whenever you tap Sync Now.</span>
+                  <span>Remember to click "Save Site Settings & Rates" below if you change your Place ID.</span>
                   <a
                     href="https://developers.google.com/maps/documentation/places/web-service/place-id"
                     target="_blank"
@@ -683,6 +780,119 @@ export default function InstructorDashboardPage() {
                   </a>
                 </div>
               </div>
+
+              {/* Add Custom / Google Review Form */}
+              {showAddReviewForm && (
+                <div className="p-3.5 bg-white rounded-lg border border-emerald-200 space-y-3">
+                  <div className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
+                    <Plus className="h-3.5 w-3.5 text-emerald-600" />
+                    Add Real Student Review / Testimonial
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div>
+                      <Label htmlFor="revAuthor" className="text-[11px]">Student Name</Label>
+                      <Input
+                        id="revAuthor"
+                        placeholder="e.g. Sarah J."
+                        value={newReviewAuthor}
+                        onChange={(e) => setNewReviewAuthor(e.target.value)}
+                        className="h-8 text-xs"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="revRating" className="text-[11px]">Rating (1–5 Stars)</Label>
+                      <Input
+                        id="revRating"
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={newReviewRating}
+                        onChange={(e) => setNewReviewRating(Number(e.target.value))}
+                        className="h-8 text-xs"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="revTime" className="text-[11px]">Relative Time</Label>
+                      <Input
+                        id="revTime"
+                        placeholder="e.g. 2 weeks ago"
+                        value={newReviewTime}
+                        onChange={(e) => setNewReviewTime(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="revText" className="text-[11px]">Review Text / Quote</Label>
+                    <textarea
+                      id="revText"
+                      rows={2}
+                      placeholder="Paste the student's review from your Google Business Profile..."
+                      value={newReviewText}
+                      onChange={(e) => setNewReviewText(e.target.value)}
+                      className="w-full text-xs p-2 rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-primary"
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddReviewForm(false)}
+                      className="px-3 py-1 text-xs text-slate-600 hover:bg-slate-100 rounded"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddReview}
+                      disabled={addingReview}
+                      className="px-3 py-1 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {addingReview ? "Saving..." : "Add to Homepage"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Active Reviews List */}
+              {reviewsData && reviewsData.reviews.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-emerald-200/60">
+                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Currently Displayed Reviews ({reviewsData.reviews.length})
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                    {reviewsData.reviews.map((rev) => (
+                      <div
+                        key={rev.id}
+                        className="p-2.5 bg-white rounded-lg border border-slate-200 flex items-start justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-slate-800">{rev.authorName}</span>
+                            <div className="flex gap-0.5 text-amber-500">
+                              {[...Array(rev.rating || 5)].map((_, i) => (
+                                <Star key={i} className="h-3 w-3 fill-amber-500" />
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-slate-400">{rev.relativeTime}</span>
+                          </div>
+                          <p className="text-slate-600 text-[11px] line-clamp-2 italic">"{rev.text}"</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReview(rev.id)}
+                          className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Remove this review card"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <Button type="submit" disabled={savingSettings} className="w-full">

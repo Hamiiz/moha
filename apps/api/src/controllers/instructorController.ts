@@ -19,6 +19,7 @@ import {
   updateVehicle,
   deleteVehicle,
   getReviews,
+  updateReviews,
 } from "../services/storeService.js";
 import { syncGoogleReviews } from "../services/googleReviewsService.js";
 import { getEventsForDate, deleteCalendarEvent } from "../services/calendarService.js";
@@ -332,6 +333,27 @@ export async function syncReviewsInstructorHandler(req: Request, res: Response, 
     const force = req.query["force"] === "true" || req.body?.force === true;
     const result = await syncGoogleReviews(force);
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateReviewsInstructorHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const updated = updateReviews(req.body);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteReviewInstructorHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = String(req.params["id"] || "");
+    const current = getReviews();
+    const filtered = current.reviews.filter((r) => r.id !== id);
+    const updated = updateReviews({ reviews: filtered });
+    res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
   }
