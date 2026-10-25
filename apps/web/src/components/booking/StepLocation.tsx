@@ -41,10 +41,11 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
       const res = await validateLocation(postalCode);
       setResult(res);
 
+      const hubAddr = res.centralHub?.address ? res.centralHub.address.split(",")[0] : "1002 King St W";
       if (res.isWithinServiceArea) {
-        toast.success(`Service available! ${res.distanceKm} km from 1002 King St W.`);
+        toast.success(`Service available! ${res.distanceKm} km from central hub (${hubAddr}).`);
       } else {
-        toast.warning("Outside primary door-to-door area. Please select a pickup hub.");
+        toast.warning(`Outside primary door-to-door area (${res.distanceKm} km). Please select a pickup hub.`);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to validate postal code");
@@ -84,7 +85,8 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
       <div>
         <h2 className="text-xl font-bold text-slate-900">1. Pickup Location & Eligibility</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Enter your Canadian postal code to calculate travel distance from our main hub at <span className="font-semibold text-slate-700">1002 King St W</span>.
+          Enter your Canadian postal code to calculate travel distance directly from our central hub at{" "}
+          <span className="font-semibold text-slate-700">{result?.centralHub?.address || "1002 King St W, West Toronto"}</span>.
         </p>
       </div>
 
@@ -105,6 +107,9 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Check Postal Code"}
             </Button>
           </div>
+          <p className="text-[11px] text-slate-400">
+            Distance is measured strictly between this postal code and our central hub (device location is never used).
+          </p>
         </div>
       </form>
 
@@ -119,7 +124,7 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
                 <Badge variant="success">${result.surcharge} Surcharge</Badge>
               </div>
               <p className="text-sm text-emerald-700 mt-0.5">
-                Distance: <span className="font-semibold">{result.distanceKm} km</span> from 1002 King St W.
+                Distance: <span className="font-semibold">{result.distanceKm} km</span> from central hub ({result.centralHub?.address || "1002 King St W"}).
               </p>
             </div>
           </div>
@@ -147,7 +152,9 @@ export function StepLocation({ onComplete, initialData }: StepLocationProps) {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-amber-900">Outside Direct Pickup Zone ({result.distanceKm} km)</h3>
+              <h3 className="font-semibold text-amber-900">
+                Outside Direct Pickup Zone ({result.distanceKm} km from central hub)
+              </h3>
               <p className="text-sm text-amber-700 mt-0.5">
                 We can still conduct your lesson! Please select one of our designated meeting hubs below:
               </p>

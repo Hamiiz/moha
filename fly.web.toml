@@ -1,0 +1,23 @@
+# fly.web.toml app configuration file for moha-web
+app = 'moha-web'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'apps/web/Dockerfile'
+
+[env]
+  NODE_ENV = 'production'
+  PORT = '3001'
+  HOSTNAME = '0.0.0.0'
+  NEXT_PUBLIC_API_URL = 'https://moha-api.fly.dev/api/v1'
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = '512mb'
+  cpus = 1

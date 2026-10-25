@@ -1,5 +1,10 @@
 export interface LocationValidateResponse {
   postalCode: string;
+  centralHub?: {
+    address: string;
+    lat: number;
+    lng: number;
+  };
   location?: {
     lat: number;
     lng: number;

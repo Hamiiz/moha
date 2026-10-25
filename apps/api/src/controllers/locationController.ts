@@ -2,6 +2,7 @@ import { type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
 import { geocodePostalCode, CANADIAN_POSTAL_CODE_RE } from "../services/geocodingService.js";
 import { calculateSurcharge } from "../utils/haversine.js";
+import { getSettings } from "../services/storeService.js";
 import { AppError } from "../middlewares/errorHandler.js";
 import { env } from "../config/env.js";
 
@@ -28,13 +29,24 @@ export async function validateLocation(
       throw new AppError(422, "Could not geocode the provided postal code", "GEOCODE_FAILED");
     }
 
-    const surcharge = calculateSurcharge(geo.lat, geo.lng, env.BASE_LAT, env.BASE_LNG);
+    // Measure distance strictly between the student's postal code and the central hub
+    const settings = getSettings();
+    const baseLat = settings.baseLat ?? env.BASE_LAT;
+    const baseLng = settings.baseLng ?? env.BASE_LNG;
+    const baseAddress = settings.baseAddress || "1002 King Street West, Toronto, ON M6K 1J7";
+
+    const surcharge = calculateSurcharge(geo.lat, geo.lng, baseLat, baseLng);
     const { distanceKm, ...surchargeRest } = surcharge;
 
     res.json({
       success: true,
       data: {
         postalCode,
+        centralHub: {
+          address: baseAddress,
+          lat: baseLat,
+          lng: baseLng,
+        },
         location:   { lat: geo.lat, lng: geo.lng, displayName: geo.displayName },
         distanceKm: Math.round(distanceKm * 10) / 10,
         ...surchargeRest,

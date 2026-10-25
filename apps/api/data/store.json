@@ -3,14 +3,14 @@
     "phone": "(647) 912-7040",
     "email": "mohadriving@gmail.com",
     "instructorName": "Moha",
-    "bannerNotice": "",
+    "bannerNotice": "Test Notice from API",
     "hourlyRates": {
-      "g": 60,
-      "g2": 55,
-      "beginner": 50,
-      "refresher": 55
+      "g": 65,
+      "g2": 58,
+      "beginner": 52,
+      "refresher": 58
     },
-    "bufferMinutes": 30,
+    "bufferMinutes": 45,
     "lessonDurationMinutes": 90,
     "baseAddress": "1002 King Street West, Toronto, ON M6K 1J7",
     "baseLat": 43.6416,
@@ -67,7 +67,8 @@
         "endHour": 16,
         "startHour": 10
       }
-    ]
+    ],
+    "googlePlaceId": "ChIJTest123"
   },
   "pickupHubs": [
     {
@@ -100,5 +101,54 @@
       "badgeIcon": "star",
       "badgeText": "Most Popular"
     }
-  ]
+  ],
+  "reviewsData": {
+    "rating": 4.9,
+    "userRatingsTotal": 85,
+    "googleMapsUrl": "https://maps.google.com",
+    "lastSyncedAt": "2026-10-25T07:41:37.349Z",
+    "placeId": "ChIJORHuPak1K4gR6JFwQJYu1Vs",
+    "reviews": [
+      {
+        "id": "gr-1",
+        "authorName": "Aisha K.",
+        "rating": 5,
+        "relativeTime": "2 months ago",
+        "text": "Passed my G2 first try. Moha is incredibly patient and knows every road examiner's expectations. Worth every dollar.",
+        "initials": "A"
+      },
+      {
+        "id": "gr-2",
+        "authorName": "Marcus L.",
+        "rating": 5,
+        "relativeTime": "3 months ago",
+        "text": "Took my G test after just 2 sessions. The route practice was exactly what DriveTest uses. Highly recommend.",
+        "initials": "M"
+      },
+      {
+        "id": "gr-3",
+        "authorName": "Sara P.",
+        "rating": 5,
+        "relativeTime": "1 month ago",
+        "text": "Best instructor in West Toronto. Showed up on time, very professional, and the pickup from home was super convenient.",
+        "initials": "S"
+      },
+      {
+        "id": "gr-4",
+        "authorName": "Jordan T.",
+        "rating": 5,
+        "relativeTime": "2 weeks ago",
+        "text": "I was so nervous before my test. After 2 lessons with Moha, I felt confident. Passed! Thank you so much.",
+        "initials": "J"
+      },
+      {
+        "id": "gr-5",
+        "authorName": "Rania M.",
+        "rating": 5,
+        "relativeTime": "1 month ago",
+        "text": "Super detail oriented. He showed me exact spots where examiners watch for errors. Passed my G with zero demerits.",
+        "initials": "R"
+      }
+    ]
+  }
 }

@@ -11,8 +11,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createBooking } from "@/lib/api";
 import type { BookingConfirmationResponse } from "@/lib/types";
-import { User, Mail, Phone, CheckCircle2, Loader2, MapPin, Calendar, ExternalLink } from "lucide-react";
+import { User, Mail, Phone, CheckCircle2, Loader2, MapPin, Calendar, ExternalLink, CalendarPlus, Download } from "lucide-react";
 import { toast } from "sonner";
+import { generateGoogleCalendarUrl, downloadIcsFile } from "@/lib/calendarUtils";
 
 const StudentFormSchema = z.object({
   studentName: z.string().min(2, "Name must be at least 2 characters"),
@@ -103,6 +104,52 @@ export function StepStudentDetails({ bookingData, onBack }: StepStudentDetailsPr
           <div className="flex items-start gap-2 text-slate-700">
             <MapPin className="h-4 w-4 text-brand-600 mt-0.5" />
             <span>{confirmation.pickupAddress}</span>
+          </div>
+        </div>
+
+        {/* Add to Calendar Section */}
+        <div className="bg-white rounded-xl p-4 border border-slate-200 text-left space-y-3">
+          <div className="flex items-center gap-2">
+            <CalendarPlus className="h-4 w-4 text-brand-600" />
+            <span className="font-bold text-slate-800 text-sm">Add Appointment to Calendar</span>
+          </div>
+          <p className="text-xs text-slate-500">
+            Save this lesson to your calendar with pre-filled pickup location and a 2-hour reminder.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <a
+              href={generateGoogleCalendarUrl({
+                bookingId: confirmation.bookingId,
+                studentName: confirmation.studentName,
+                startIso: confirmation.slot.start,
+                endIso: confirmation.slot.end,
+                pickupAddress: confirmation.pickupAddress,
+                total: confirmation.pricing?.total,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors text-xs"
+            >
+              <span>Add to Google Calendar</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+            <button
+              type="button"
+              onClick={() =>
+                downloadIcsFile({
+                  bookingId: confirmation.bookingId,
+                  studentName: confirmation.studentName,
+                  startIso: confirmation.slot.start,
+                  endIso: confirmation.slot.end,
+                  pickupAddress: confirmation.pickupAddress,
+                  total: confirmation.pricing?.total,
+                })
+              }
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-700 font-medium hover:bg-slate-100 transition-colors text-xs"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Apple / Device Calendar (.ics)</span>
+            </button>
           </div>
         </div>
 

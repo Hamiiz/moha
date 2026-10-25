@@ -1,4 +1,4 @@
-import { getPickupHubs, type PickupHubItem } from "../services/storeService.js";
+import { getPickupHubs, getSettings, type PickupHubItem } from "../services/storeService.js";
 
 const EARTH_RADIUS_KM = 6_371;
 
@@ -26,8 +26,10 @@ export function calculateSurcharge(
   studentLat: number, studentLng: number,
   baseLat: number,    baseLng: number,
 ): SurchargeResult {
+  const settings = getSettings();
+  const maxRadius = settings.maxServiceRadiusKm ?? 20;
   const dist = haversineDistance(baseLat, baseLng, studentLat, studentLng);
-  if (dist < 10)  return { isWithinServiceArea: true,  distanceKm: dist, surcharge: 0 };
-  if (dist <= 20) return { isWithinServiceArea: true,  distanceKm: dist, surcharge: 10 };
-  return           { isWithinServiceArea: false, distanceKm: dist, availablePickupHubs: getPickupHubs() };
+  if (dist < 10)         return { isWithinServiceArea: true,  distanceKm: dist, surcharge: 0 };
+  if (dist <= maxRadius) return { isWithinServiceArea: true,  distanceKm: dist, surcharge: 10 };
+  return                  { isWithinServiceArea: false, distanceKm: dist, availablePickupHubs: getPickupHubs() };
 }

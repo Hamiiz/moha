@@ -145,11 +145,16 @@ jobs:
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-      # ── Deploy API to Fly.io ────────────────────────────────────────
+      # ── Deploy API & Web to Fly.io ──────────────────────────────────
       - name: Setup Fly.io CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy API to Fly.io
-        run: flyctl deploy --remote-only --config fly.toml
+        run: flyctl deploy --remote-only --config fly.api.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deploy Web to Fly.io
+        run: flyctl deploy --remote-only --config fly.web.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
