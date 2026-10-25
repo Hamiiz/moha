@@ -7,11 +7,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://moha-web.fly.dev";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Moha Driving School – G2 & G Road Test Lessons in West Toronto",
+    default: "Moha Driving School – G2 & G Lessons in West Toronto",
     template: "%s | Moha Driving School",
   },
   description:
-    "Certified MTO driving instructor in West Toronto & surrounding areas. 94% first-attempt pass rate, free door-to-door pickup, dual-control vehicles, same-week DriveTest warmup slots.",
+    "MTO driving instructor in West Toronto. 94% first-attempt pass rate, free door pickup, dual-control car & real DriveTest route practice.",
   keywords: [
     "driving school West Toronto",
     "driving instructor West Toronto",
@@ -38,19 +38,28 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "Moha Driving School – Pass Your Road Test First Try",
+    title: "Moha Driving School",
     description:
-      "MTO-Certified driving instruction in West Toronto. Real DriveTest routes practice, dual controls, 94% first-attempt pass rate.",
+      "MTO driving instructor in West Toronto. 94% pass rate, dual-control car, and real DriveTest route prep.",
     url: SITE_URL,
     siteName: "Moha Driving School",
     locale: "en_CA",
     type: "website",
+    images: [
+      {
+        url: `${SITE_URL}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: "Moha Driving School – West Toronto Driving Lessons",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Moha Driving School – Pass Your Road Test First Try",
     description:
-      "G2 and G road test prep with West Toronto's most detail-oriented instructor. 94% first-attempt pass rate.",
+      "G2 & G road test prep in West Toronto. 94% first-attempt pass rate and free door-to-door pickup.",
+    images: [`${SITE_URL}/og-image.png`],
   },
   robots: {
     index: true,
